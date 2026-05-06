@@ -1,6 +1,6 @@
 import React from "react";
 import toast from "react-hot-toast";
-import { useAppDB } from "../App";
+import { useAppDB } from "../../App";
 
 const INITIALS = (name) =>
   name
