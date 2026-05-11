@@ -1554,4 +1554,234 @@ tr:hover td{
   font-weight:800;
   margin-top:10px;
 }
+
+
+/* LOGIN */
+ 
+.login-container{
+ 
+ min-height:100vh;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ 
+ background:
+ linear-gradient(
+ rgba(15,23,42,.7),
+ rgba(15,23,42,.7)
+ ),
+ 
+ url("https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop");
+ 
+ background-size:cover;
+ background-position:center;
+ padding:20px;
+}
+ 
+.login-card{
+ 
+ width:100%;
+ max-width:420px;
+ 
+ background:rgba(255,255,255,.95);
+ 
+ backdrop-filter:blur(10px);
+ 
+ border-radius:28px;
+ 
+ padding:40px;
+ 
+ box-shadow:
+ 0 20px 60px rgba(0,0,0,.25);
+ 
+ animation:fadeIn .5s ease;
+}
+ 
+.login-logo{
+ 
+ width:90px;
+ height:90px;
+ 
+ margin:auto;
+ margin-bottom:20px;
+ 
+ border-radius:24px;
+ 
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ 
+ font-size:42px;
+ 
+ background:
+ linear-gradient(
+ 135deg,
+ #9333ea,
+ #ec4899
+ );
+ 
+ color:white;
+}
+ 
+.login-card h1{
+ 
+ text-align:center;
+ margin:0;
+ 
+ font-size:34px;
+ color:#111827;
+}
+ 
+.login-card p{
+ 
+ text-align:center;
+ color:#6b7280;
+ margin-bottom:30px;
+}
+ 
+.login-group{
+ 
+ margin-bottom:18px;
+}
+ 
+.login-group label{
+ 
+ display:block;
+ margin-bottom:8px;
+ 
+ font-weight:600;
+ color:#374151;
+}
+ 
+.login-group input{
+ 
+ width:100%;
+ padding:14px;
+ 
+ border-radius:14px;
+ border:1px solid #d1d5db;
+ 
+ font-size:15px;
+ 
+ outline:none;
+ 
+ transition:.3s;
+}
+ 
+.login-group input:focus{
+ 
+ border-color:#9333ea;
+ 
+ box-shadow:
+ 0 0 0 4px
+ rgba(147,51,234,.15);
+}
+ 
+.login-btn{
+ 
+ width:100%;
+ padding:15px;
+ 
+ border:none;
+ border-radius:16px;
+ 
+ background:
+ linear-gradient(
+ 135deg,
+ #9333ea,
+ #ec4899
+ );
+ 
+ color:white;
+ 
+ font-size:16px;
+ font-weight:700;
+ 
+ cursor:pointer;
+ 
+ transition:.3s;
+ 
+ margin-top:10px;
+}
+ 
+.login-btn:hover{
+ 
+ transform:translateY(-2px);
+ 
+ box-shadow:
+ 0 10px 20px
+ rgba(147,51,234,.25);
+}
+ 
+.login-error{
+ 
+ background:#fee2e2;
+ color:#dc2626;
+ 
+ padding:12px;
+ 
+ border-radius:12px;
+ 
+ margin-bottom:15px;
+}
+ 
+.logout-btn{
+ 
+ margin:16px;
+ padding:12px;
+ 
+ border:none;
+ border-radius:14px;
+ 
+ background:#ef4444;
+ color:white;
+ 
+ font-weight:700;
+ 
+ cursor:pointer;
+}
+ 
+@keyframes fadeIn{
+ 
+ from{
+ opacity:0;
+ transform:translateY(20px);
+ }
+ 
+ to{
+ opacity:1;
+ transform:translateY(0);
+ }
+}
+ 
+button:hover{
+transform:scale(1.03);
+transition:0.3s;
+}
+
+.bubble1{
+position:absolute;
+width:300px;
+height:300px;
+background:#ff8de1;
+border-radius:50%;
+filter:blur(100px);
+top:-100px;
+left:-100px;
+opacity:0.4;
+z-index:0;
+}
+ 
+.bubble2{
+position:absolute;
+width:250px;
+height:250px;
+background:#c77dff;
+border-radius:50%;
+filter:blur(120px);
+bottom:-100px;
+right:-100px;
+opacity:0.4;
+z-index:0;
+}
  
