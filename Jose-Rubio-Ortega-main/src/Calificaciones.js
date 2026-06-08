@@ -1,4 +1,4 @@
-// ========================== CALIFICACIONES.jsx ==========================
+// CALIFICACIONES.jsx 
 import React from "react";
 import { useAppDB } from "./App";
 

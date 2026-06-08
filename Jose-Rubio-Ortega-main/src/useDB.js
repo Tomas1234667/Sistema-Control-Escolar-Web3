@@ -2,11 +2,7 @@ import axios from 'axios';
 import { useState, useEffect, useCallback } from "react";
 import { v4 as uuid } from "uuid";
 
-<<<<<<< HEAD
-//seed data 
-=======
 // ── seed data ─────────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
 const SEED_MAESTROS = [
     { id: "m1", nombre: "Ricardo Guzmán Pérez", email: "rguzmán@escuela.edu", tel: "5591234567", materias: ["Matemáticas", "Ciencias"], grupos: ["3A", "4A", "5B"], activo: true },
     { id: "m2", nombre: "Alicia Moreno Vda", email: "amoreno@escuela.edu", tel: "5592345678", materias: ["Español", "Historia"], grupos: ["1A", "1B", "2A"], activo: true },
@@ -49,17 +45,10 @@ const SEED_AVISOS = [{
     activo: true
 }, ];
 
-<<<<<<< HEAD
-//  hook principal
-export function useDB() {
-
-    // STATES
-=======
 // ── hook principal ─────────────────────────────────────────────────────────────
 export function useDB() {
 
     // ── STATES ────────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const [alumnos, setAlumnosState] = useState([]);
     const [maestros, setMaestrosState] = useState(SEED_MAESTROS);
     const [grupos, setGruposState] = useState(SEED_GRUPOS);
@@ -67,11 +56,7 @@ export function useDB() {
     const [asistencia, setAsistenciaState] = useState(SEED_ASISTENCIA);
     const [avisos, setAvisosState] = useState(SEED_AVISOS);
 
-<<<<<<< HEAD
-    //CARGAR DATOS DESDE MYSQL
-=======
     // ── CARGAR DATOS DESDE MYSQL ─────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     useEffect(() => {
         cargarDatos();
     }, []);
@@ -113,11 +98,7 @@ export function useDB() {
 
     };
 
-<<<<<<< HEAD
-    // ALUMNOS
-=======
     // ── ALUMNOS ───────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const agregarAlumno = async(data) => {
 
         try {
@@ -174,11 +155,7 @@ export function useDB() {
 
     };
 
-<<<<<<< HEAD
-    //  MAESTROS
-=======
     // ── MAESTROS ──────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const agregarMaestro = useCallback((data) => {
 
         const nuevo = {
@@ -204,11 +181,7 @@ export function useDB() {
 
     }, []);
 
-<<<<<<< HEAD
-    // GRUPOS
-=======
     // ── GRUPOS ────────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const agregarGrupo = useCallback((data) => {
 
         const nuevo = {
@@ -233,11 +206,7 @@ export function useDB() {
 
     }, []);
 
-<<<<<<< HEAD
-    // CALIFICACIONES 
-=======
     // ── CALIFICACIONES ────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const guardarCalificacion = useCallback((data) => {
 
         setCalifState(p => {
@@ -277,11 +246,7 @@ export function useDB() {
 
     }, []);
 
-<<<<<<< HEAD
-    // ASISTENCIA 
-=======
     // ── ASISTENCIA ────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const guardarAsistencia = useCallback((alumnoId, fecha, estado, maestroId) => {
 
         setAsistenciaState(p => {
@@ -331,11 +296,7 @@ export function useDB() {
 
     }, [asistencia]);
 
-<<<<<<< HEAD
-    // AVISOS
-=======
     // ── AVISOS ────────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const agregarAviso = useCallback((data) => {
 
         const nuevo = {
@@ -361,11 +322,7 @@ export function useDB() {
 
     }, []);
 
-<<<<<<< HEAD
-    // CALCULOS
-=======
     // ── CÁLCULOS ──────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const promedioAlumno = useCallback((alumnoId) => {
 
         const califs = calificaciones.filter(c =>
@@ -433,11 +390,7 @@ export function useDB() {
 
     }, [faltasAlumno, promedioAlumno, asistenciaPctAlumno]);
 
-<<<<<<< HEAD
-    // FILTROS 
-=======
     // ── FILTROS ───────────────────────────────────────────────────────────────
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
     const alumnosActivos = alumnos.filter(a => a.activo);
     const maestrosActivos = maestros.filter(m => m.activo);
     const avisosActivos = avisos.filter(a => a.activo);
@@ -478,11 +431,7 @@ export function useDB() {
         agregarAviso,
         eliminarAviso,
 
-<<<<<<< HEAD
-        // calculos
-=======
         // cálculos
->>>>>>> ad6f0b5055634c92c96965f4874369017b4c5cb8
         promedioAlumno,
         faltasAlumno,
         asistenciaPctAlumno,

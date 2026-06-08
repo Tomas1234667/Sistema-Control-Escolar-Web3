@@ -1,193 +1,141 @@
-body{
-  margin: 0;
-  padding: 0;
-  font-family: 'Poppins', sans-serif;
- 
-  min-height: 100vh;
- 
-  display: flex;
-  justify-content: center;
-  align-items: center;
- 
-  overflow: hidden;
- 
-  background:
-    linear-gradient(
-      135deg,
-      #0f172a,
-      #1e1b4b,
-      #312e81,
-      #4c1d95
-    );
- 
-  background-size: 400% 400%;
- 
-  animation: fondoAnimado 12s ease infinite;
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    background: linear-gradient( 135deg, #0f172a, #1e1b4b, #312e81, #4c1d95);
+    background-size: 400% 400%;
+    animation: fondoAnimado 12s ease infinite;
 }
- 
-@keyframes fondoAnimado{
-  0%{
-    background-position: 0% 50%;
-  }
- 
-  50%{
-    background-position: 100% 50%;
-  }
- 
-  100%{
-    background-position: 0% 50%;
-  }
+
+@keyframes fondoAnimado {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
- 
+
+
 /* Luces decorativas */
+
 body::before,
-body::after{
-  content: "";
- 
-  position: absolute;
- 
-  width: 350px;
-  height: 350px;
- 
-  border-radius: 50%;
- 
-  filter: blur(120px);
- 
-  opacity: 0.5;
+body::after {
+    content: "";
+    position: absolute;
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.5;
 }
- 
-body::before{
-  background: #9333ea;
- 
-  top: -100px;
-  left: -100px;
+
+body::before {
+    background: #9333ea;
+    top: -100px;
+    left: -100px;
 }
- 
-body::after{
-  background: #ec4899;
- 
-  bottom: -100px;
-  right: -100px;
+
+body::after {
+    background: #ec4899;
+    bottom: -100px;
+    right: -100px;
 }
- 
+
+
 /* LOGIN */
-.login-container{
-  width: 400px;
- 
-  padding: 40px;
- 
-  border-radius: 25px;
- 
-  background: rgba(255,255,255,0.08);
- 
-  backdrop-filter: blur(15px);
- 
-  border: 1px solid rgba(255,255,255,0.2);
- 
-  box-shadow:
-    0 8px 32px rgba(0,0,0,0.4);
- 
-  color: white;
- 
-  z-index: 10;
+
+.login-container {
+    width: 400px;
+    padding: 40px;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    color: white;
+    z-index: 10;
 }
- 
+
+
 /* TITULO */
-.login-title{
-  text-align: center;
- 
-  font-size: 42px;
- 
-  margin-bottom: 5px;
- 
-  color: #f472b6;
+
+.login-title {
+    text-align: center;
+    font-size: 42px;
+    margin-bottom: 5px;
+    color: #f472b6;
 }
- 
+
+
 /* SUBTITULO */
-.login-subtitle{
-  text-align: center;
- 
-  margin-bottom: 30px;
- 
-  color: #d1d5db;
+
+.login-subtitle {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #d1d5db;
 }
- 
+
+
 /* LABELS */
-label{
-  display: block;
- 
-  margin-bottom: 8px;
- 
-  font-weight: bold;
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
 }
- 
+
+
 /* INPUTS */
-.input{
-  width: 100%;
- 
-  padding: 15px;
- 
-  margin-bottom: 20px;
- 
-  border: none;
- 
-  outline: none;
- 
-  border-radius: 14px;
- 
-  background: rgba(255,255,255,0.12);
- 
-  color: white;
- 
-  font-size: 15px;
- 
-  transition: 0.3s;
- 
-  box-sizing: border-box;
+
+.input {
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: none;
+    outline: none;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    font-size: 15px;
+    transition: 0.3s;
+    box-sizing: border-box;
 }
- 
-.input:focus{
-  border: 1px solid #a855f7;
- 
-  box-shadow:
-    0 0 15px #a855f7;
+
+.input:focus {
+    border: 1px solid #a855f7;
+    box-shadow: 0 0 15px #a855f7;
 }
- 
-.input::placeholder{
-  color: #d1d5db;
+
+.input::placeholder {
+    color: #d1d5db;
 }
- 
+
+
 /* BOTON */
-.btn-login{
-  width: 100%;
- 
-  padding: 15px;
- 
-  border: none;
- 
-  border-radius: 15px;
- 
-  background:
-    linear-gradient(
-      90deg,
-      #9333ea,
-      #ec4899
-    );
- 
-  color: white;
- 
-  font-size: 17px;
- 
-  font-weight: bold;
- 
-  cursor: pointer;
- 
-  transition: 0.3s;
+
+.btn-login {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 15px;
+    background: linear-gradient( 90deg, #9333ea, #ec4899);
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
 }
- 
-.btn-login:hover{
-  transform: translateY(-3px);
- 
-  box-shadow:
-    0 10px 25px rgba(236,72,153,0.5);
+
+.btn-login:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(236, 72, 153, 0.5);
 }
