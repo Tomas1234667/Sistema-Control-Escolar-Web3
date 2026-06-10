@@ -47,8 +47,8 @@ function Dashboard() {
         <
         div className = "stat-icon"
         style = {
-            { background: "#dbeafe" }
-        } > 👨‍🎓
+            { background: "#dbeafe" } } >
+        👨‍🎓
         <
         /div>
 
@@ -64,16 +64,16 @@ function Dashboard() {
         <
         div className = "stat-sub" > { db.grupos.length }
         grupos activos <
-        /div> < /
-        div >
+        /div> <
+        /div>
 
         <
         div className = "stat-card" >
         <
         div className = "stat-icon"
         style = {
-            { background: "#dcfce7" }
-        } > ✅
+            { background: "#dcfce7" } } >
+        ✅
         <
         /div>
 
@@ -89,8 +89,8 @@ function Dashboard() {
 
         <
         div className = "stat-sub" > { presentes }
-        /{asistHoy.length} presentes < /
-        div > <
+        /{asistHoy.length} presentes <
+        /div> <
         /div>
 
         <
@@ -98,8 +98,8 @@ function Dashboard() {
         <
         div className = "stat-icon"
         style = {
-            { background: "#ede9fe" }
-        } > 📊
+            { background: "#ede9fe" } } >
+        📊
         <
         /div>
 
@@ -115,16 +115,16 @@ function Dashboard() {
         <
         div className = "stat-sub" >
         Ciclo 2024 - 2025 <
-        /div> < /
-        div >
+        /div> <
+        /div>
 
         <
         div className = "stat-card" >
         <
         div className = "stat-icon"
         style = {
-            { background: "#fee2e2" }
-        } > ⚠️
+            { background: "#fee2e2" } } >
+        ⚠️
         <
         /div>
 
@@ -138,16 +138,18 @@ function Dashboard() {
         style = {
             {
                 color: enRiesgo.length > 0 ?
-                    "#dc2626" : "#16a34a",
+                    "#dc2626" :
+                    "#16a34a",
             }
-        } > { enRiesgo.length } <
+        } >
+        { enRiesgo.length } <
         /div>
 
         <
         div className = "stat-sub" >
         Requieren atención urgente <
-        /div> < /
-        div > <
+        /div> <
+        /div> <
         /div>
 
         { /* ALERTS */ } {
@@ -156,15 +158,13 @@ function Dashboard() {
                 className = "alert alert-danger mb-8" >
                 <
                 span style = {
-                    { fontSize: 20 }
-                } > 🚨
+                    { fontSize: 20 } } > 🚨
                 <
                 /span>
 
                 <
                 div style = {
-                    { flex: 1 }
-                } >
+                    { flex: 1 } } >
                 <
                 strong > { a.nombre } < /strong> { " " }—
                 En riesgo escolar
@@ -173,17 +173,16 @@ function Dashboard() {
                 div className = "small muted" > { db.faltasAlumno(a.id) }
                 faltas· Promedio: { db.promedioAlumno(a.id) ? ? "--" }·
                 Grupo: { a.grupo } <
-                /div> < /
-                div >
+                /div> <
+                /div>
 
                 <
                 button className = "btn btn-sm btn-danger"
                 onClick = {
-                    () => navigate("/riesgo")
-                } >
+                    () => navigate("/riesgo") } >
                 Ver alertas <
-                /button> < /
-                div >
+                /button> <
+                /div>
             ))
         }
 
@@ -202,8 +201,8 @@ function Dashboard() {
         <
         div className = "card-title" >
         Asistencia por Grupo <
-        /div> < /
-        div >
+        /div> <
+        /div>
 
         {
             chartData.length > 0 ? ( <
@@ -227,36 +226,31 @@ function Dashboard() {
                 <
                 XAxis dataKey = "grupo"
                 tick = {
-                    { fontSize: 11 }
-                }
+                    { fontSize: 11 } }
                 />
 
                 <
                 YAxis domain = {
-                    [0, 100]
-                }
+                    [0, 100] }
                 tick = {
-                    { fontSize: 11 }
-                }
+                    { fontSize: 11 } }
                 />
 
                 <
                 Tooltip formatter = {
-                    (v) => `${v}%`
-                }
+                    (v) => `${v}%` }
                 />
 
                 <
                 Bar dataKey = "pct"
                 fill = "#1a56db"
                 radius = {
-                    [4, 4, 0, 0]
-                }
+                    [4, 4, 0, 0] }
                 name = "Asistencia" /
                 >
                 <
-                /BarChart> < /
-                ResponsiveContainer >
+                /BarChart> <
+                /ResponsiveContainer>
             ) : ( <
                 div className = "empty-state" >
                 <
@@ -272,14 +266,12 @@ function Dashboard() {
                 <
                 button className = "btn btn-primary btn-sm"
                 onClick = {
-                    () => navigate("/asistencia")
-                }
+                    () => navigate("/asistencia") }
                 style = {
-                    { marginTop: 8 }
-                } >
+                    { marginTop: 8 } } >
                 Tomar asistencia <
-                /button> < /
-                div >
+                /button> <
+                /div>
             )
         } <
         /div>
@@ -291,8 +283,8 @@ function Dashboard() {
         <
         div className = "card-title" >
         Distribución de Riesgo <
-        /div> < /
-        div >
+        /div> <
+        /div>
 
         {
             pieData.length > 0 ? ( <
@@ -314,7 +306,8 @@ function Dashboard() {
                 cy = "50%"
                 innerRadius = { 50 }
                 outerRadius = { 80 }
-                dataKey = "value" > {
+                dataKey = "value" >
+                {
                     pieData.map((entry, i) => ( <
                         Cell key = { i }
                         fill = { entry.color }
@@ -330,14 +323,13 @@ function Dashboard() {
                         n,
                     ]
                 }
-                /> < /
-                PieChart > <
+                /> <
+                /PieChart> <
                 /ResponsiveContainer>
 
                 <
                 div style = {
-                    { flex: 1 }
-                } > {
+                    { flex: 1 } } > {
                     pieData.map((d, i) => ( <
                         div key = { i }
                         className = "flex-center gap-8 mb-8" >
@@ -359,14 +351,14 @@ function Dashboard() {
 
                         <
                         strong style = {
-                            { marginLeft: "auto" }
-                        } > { d.value } <
-                        /strong> < /
-                        div >
+                            { marginLeft: "auto" } } >
+                        { d.value } <
+                        /strong> <
+                        /div>
                     ))
                 } <
-                /div> < /
-                div >
+                /div> <
+                /div>
             ) : ( <
                 div className = "empty-state" >
                 <
@@ -377,12 +369,12 @@ function Dashboard() {
                 <
                 div className = "empty-title" >
                 Sin datos suficientes <
-                /div> < /
-                div >
+                /div> <
+                /div>
             )
         } <
-        /div> < /
-        div >
+        /div> <
+        /div>
 
         { /* ULTIMOS AVISOS */ } <
         div className = "card" >
@@ -397,11 +389,10 @@ function Dashboard() {
         <
         button className = "btn btn-sm"
         onClick = {
-            () => navigate("/avisos")
-        } >
+            () => navigate("/avisos") } >
         Ver todos <
-        /button> < /
-        div >
+        /button> <
+        /div>
 
         {
             db.avisos.length === 0 ? ( <
@@ -414,8 +405,8 @@ function Dashboard() {
                 <
                 div className = "empty-title" >
                 Sin avisos <
-                /div> < /
-                div >
+                /div> <
+                /div>
             ) : (
                 db.avisos.slice(0, 3).map((av) => ( <
                     div key = { av.id }
@@ -423,26 +414,27 @@ function Dashboard() {
                     <
                     div className = "aviso-icon"
                     style = {
-                        { background: "#dbeafe" }
-                    } > {
+                        { background: "#dbeafe" } } >
+                    {
                         av.tipo === "reunion" ?
-                        "🤝" : av.tipo === "calificaciones" ?
-                            "📝" : "📅"
+                        "🤝" :
+                            av.tipo === "calificaciones" ?
+                            "📝" :
+                            "📅"
                     } <
                     /div>
 
                     <
                     div style = {
-                        { flex: 1 }
-                    } >
+                        { flex: 1 } } >
                     <
                     div className = "aviso-title" > { av.titulo } <
                     /div>
 
                     <
                     div className = "aviso-desc" > { av.desc } <
-                    /div> < /
-                    div >
+                    /div> <
+                    /div>
 
                     <
                     div className = "aviso-meta" >
@@ -453,16 +445,16 @@ function Dashboard() {
                     <
                     span className = "badge badge-info"
                     style = {
-                        { marginTop: 4 }
-                    } > { av.grupo } <
-                    /span> < /
-                    div > <
+                        { marginTop: 4 } } >
+                    { av.grupo } <
+                    /span> <
+                    /div> <
                     /div>
                 ))
             )
         } <
-        /div> < /
-        Layout >
+        /div> <
+        /Layout>
     );
 }
 
