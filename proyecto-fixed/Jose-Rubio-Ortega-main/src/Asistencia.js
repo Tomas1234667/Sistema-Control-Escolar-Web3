@@ -9,11 +9,21 @@ const ESTADO_LABEL = { presente: "Presente", ausente: "Ausente", justificado: "J
 
 function Asistencia() {
     const db = useAppDB();
-    const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
-    const [grupoId, setGrupoId] = useState(db.grupos?.[0]?.id ?? "");
-    const alumnosGrupo = useMemo(
-        () => db.alumnos.filter(a => a.grupo === grupoId), [db.alumnos, grupoId]
+
+    const [fecha, setFecha] = useState(
+        new Date().toISOString().slice(0, 10)
     );
+
+    const [grupoId, setGrupoId] = useState(
+        db.grupos?.[0]?.id ?? ""
+    );
+
+    const alumnosGrupo = useMemo(
+        () => db.alumnos.filter(a => a.grupo === grupoId),
+        [db.alumnos, grupoId]
+    );
+
+}
 
     const registros = useMemo(
         () => db.asistenciaPorFecha(fecha), [db, fecha]
@@ -37,7 +47,6 @@ function Asistencia() {
     };
 
     const guardarLista = () => {
-        // already saved in real time, just confirm
         toast.success("✅ Lista de asistencia guardada");
     };
 
@@ -317,6 +326,6 @@ return (
     </div>
   </Layout>
 );
-}
+
 
 export default Asistencia;
