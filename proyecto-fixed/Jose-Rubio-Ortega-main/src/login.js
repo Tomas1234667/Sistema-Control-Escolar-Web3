@@ -22,7 +22,7 @@ function Login({ onLogin }) {
         setError("");
         setCargando(true);
         setTimeout(() => {
-            if (usuario === "admin" && password === "norma123@1") {
+            if (usuario === "admin" && password === "1234") {
                 localStorage.setItem("auth", "true");
                 if (onLogin) onLogin();
             } else {

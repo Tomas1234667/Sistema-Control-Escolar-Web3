@@ -16,9 +16,13 @@ const SEED_GRUPOS = [
     { id: "2A", nombre: "2° A", grado: 2, salon: "Aula 3", maestroId: "m2", turno: "Matutino" },
     { id: "2B", nombre: "2° B", grado: 2, salon: "Aula 4", maestroId: "m1", turno: "Matutino" },
     { id: "3A", nombre: "3° A", grado: 3, salon: "Aula 5", maestroId: "m1", turno: "Matutino" },
-    { id: "4A", nombre: "4° A", grado: 4, salon: "Aula 6", maestroId: "m1", turno: "Matutino" },
-    { id: "5B", nombre: "5° B", grado: 5, salon: "Aula 7", maestroId: "m1", turno: "Matutino" },
-    { id: "6A", nombre: "6° A", grado: 6, salon: "Aula 8", maestroId: "m4", turno: "Matutino" },
+    { id: "3B", nombre: "3° B", grado: 3, salon: "Aula 6", maestroId: "m1", turno: "Matutino" },
+    { id: "4A", nombre: "4° A", grado: 4, salon: "Aula 7", maestroId: "m1", turno: "Matutino" },
+    { id: "4B", nombre: "4° B", grado: 4, salon: "Aula 8", maestroId: "m1", turno: "Matutino" },
+    { id: "5A", nombre: "5° A", grado: 5, salon: "Aula 9", maestroId: "m1", turno: "Matutino" },
+    { id: "5B", nombre: "5° B", grado: 5, salon: "Aula 10", maestroId: "m1", turno: "Matutino" },
+    { id: "6A", nombre: "6° A", grado: 6, salon: "Aula 11", maestroId: "m4", turno: "Matutino" },
+    { id: "6B", nombre: "6° B", grado: 6, salon: "Aula 12", maestroId: "m4", turno: "Matutino" },
 ];
 
 const SEED_CALIFICACIONES = [
