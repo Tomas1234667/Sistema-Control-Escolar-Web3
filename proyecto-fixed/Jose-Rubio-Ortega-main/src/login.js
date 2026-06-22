@@ -2,25 +2,21 @@ import "./login.css";
 import React, { useState, useEffect } from "react";
 
 function Login({ onLogin }) {
-  const [usuario, setUsuario] = useState("");
+  const [usuario,  setUsuario]  = useState("");
   const [password, setPassword] = useState("");
-  const [mostrar, setMostrar] = useState(false);
-  const [error, setError] = useState("");
+  const [mostrar,  setMostrar]  = useState(false);
+  const [error,    setError]    = useState("");
   const [cargando, setCargando] = useState(false);
-  const [hora, setHora] = useState("");
-  const [tipoUsuario, setTipoUsuario] = useState("Administrador");
+  const [hora,     setHora]     = useState("");
 
   useEffect(() => {
-    const iv = setInterval(() => {
-      setHora(new Date().toLocaleTimeString("es-MX"));
-    }, 1000);
+    const iv = setInterval(() => setHora(new Date().toLocaleTimeString("es-MX")), 1000);
     return () => clearInterval(iv);
   }, []);
 
   const iniciarSesion = (e) => {
     e.preventDefault();
-    setError("");
-    setCargando(true);
+    setError(""); setCargando(true);
     setTimeout(() => {
       if (usuario === "admin" && password === "1234") {
         localStorage.setItem("auth", "true");
@@ -33,44 +29,40 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="login-page">
-      {/* Burbujas decorativas */}
-      <div className="login-bubble login-bubble--1" />
-      <div className="login-bubble login-bubble--2" />
-      <div className="login-bubble login-bubble--3" />
+    <div className="lp-page">
+      {/* burbujas decorativas */}
+      <div className="lp-bubble lp-bubble--1" />
+      <div className="lp-bubble lp-bubble--2" />
 
-      <div className="login-card">
+      <div className="lp-card">
+
         {/* LOGO */}
-        <div className="login-logo-wrap">
-          <div className="login-logo-icon">🎓</div>
-          <h1 className="login-title">EduGestión</h1>
-          <p className="login-subtitle">Plataforma Inteligente Escolar</p>
-          <div className="login-clock">🕒 {hora}</div>
+        <div className="lp-header">
+          <div className="lp-icon">🎓</div>
+          <h1 className="lp-title">EduGestión</h1>
+          <p className="lp-sub">Plataforma Inteligente Escolar</p>
+          <div className="lp-clock">🕒 {hora}</div>
         </div>
 
-        {/* FORMULARIO */}
-        <form onSubmit={iniciarSesion} className="login-form">
+        {/* FORM */}
+        <form onSubmit={iniciarSesion} className="lp-form">
 
-          {/* TIPO DE USUARIO */}
-          <div className="login-field">
-            <label className="login-label">🎓 Tipo de usuario</label>
-            <select
-              className="login-input"
-              value={tipoUsuario}
-              onChange={(e) => setTipoUsuario(e.target.value)}
-            >
+          {/* Tipo usuario */}
+          <div className="lp-field">
+            <label className="lp-label">🎓 Tipo de usuario</label>
+            <select className="lp-input">
               <option>Administrador</option>
               <option>Maestro</option>
               <option>Alumno</option>
             </select>
           </div>
 
-          {/* USUARIO */}
-          <div className="login-field">
-            <label className="login-label">👤 Usuario</label>
+          {/* Usuario */}
+          <div className="lp-field">
+            <label className="lp-label">👤 Usuario</label>
             <input
               type="text"
-              className="login-input"
+              className="lp-input"
               placeholder="Ingresa tu usuario"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
@@ -78,13 +70,13 @@ function Login({ onLogin }) {
             />
           </div>
 
-          {/* CONTRASEÑA */}
-          <div className="login-field">
-            <label className="login-label">🔒 Contraseña</label>
-            <div className="login-input-wrap">
+          {/* Contraseña */}
+          <div className="lp-field">
+            <label className="lp-label">🔒 Contraseña</label>
+            <div className="lp-pass-wrap">
               <input
                 type={mostrar ? "text" : "password"}
-                className="login-input login-input--pass"
+                className="lp-input lp-input--pass"
                 placeholder="Ingresa tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -92,44 +84,33 @@ function Login({ onLogin }) {
               />
               <button
                 type="button"
-                className="login-eye"
+                className="lp-eye"
                 onClick={() => setMostrar((v) => !v)}
-                aria-label={mostrar ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-label={mostrar ? "Ocultar" : "Mostrar"}
               >
                 {mostrar ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
 
-          {/* OPCIONES */}
-          <div className="login-options">
-            <label className="login-remember">
+          {/* Opciones */}
+          <div className="lp-options">
+            <label className="lp-remember">
               <input type="checkbox" /> Recordarme
             </label>
-            <span className="login-forgot">¿Olvidaste tu contraseña?</span>
+            <span className="lp-forgot">¿Olvidaste tu contraseña?</span>
           </div>
 
-          {/* ERROR */}
-          {error && (
-            <div className="login-error">
-              ❌ {error}
-            </div>
-          )}
+          {/* Error */}
+          {error && <div className="lp-error">❌ {error}</div>}
 
-          {/* BOTÓN */}
-          <button type="submit" className="login-btn" disabled={cargando}>
-            {cargando ? (
-              <span className="login-spinner">⏳ Verificando...</span>
-            ) : (
-              "🚀 Iniciar Sesión"
-            )}
+          {/* Botón */}
+          <button type="submit" className="lp-btn" disabled={cargando}>
+            {cargando ? "⏳ Verificando..." : "🚀 Iniciar Sesión"}
           </button>
         </form>
 
-        {/* FOOTER */}
-        <p className="login-footer">
-          © 2026 EduGestión · Sistema Escolar Inteligente
-        </p>
+        <p className="lp-footer">© 2026 EduGestión · Sistema Escolar Inteligente</p>
       </div>
     </div>
   );

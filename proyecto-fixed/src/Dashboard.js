@@ -165,7 +165,7 @@ function Dashboard() {
             <div className="card-title">Control de Asistencia</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: 20 }}>
-            <QRCodeCanvas value="http://localhost:3000" size={130} />
+            <QRCodeCanvas value="https://sistema-control-escolar-web3.onrender.com/" size={130} />
             <div className="small muted">Escanee el código QR para acceder más rápido desde tu celular</div>
             <div style={{ width: "100%", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
               <div style={{ marginBottom: "6px" }}>👨‍🎓 Alumnos: {totalAlumnos}</div>
