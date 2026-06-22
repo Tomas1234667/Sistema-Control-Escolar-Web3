@@ -1214,19 +1214,203 @@ button:hover {
     transition: 0.2s;
 }
 
-/* ── RESPONSIVE ─────────────────────────────────────────────────── */
-@media (max-width: 900px) {
+/* ===== RESPONSIVE ===== */
+
+/* ── PC grande (>1200px): sidebar expandido, todo visible ── */
+@media (min-width: 1201px) {
     .sidebar {
-        width: 80px;
+        width: 230px;
     }
-    .sidebar h2,
-    .sidebar span {
+    .sidebar.collapsed {
+        width: 64px;
+    }
+    .sidebar .nav-label,
+    .sidebar .logo-title,
+    .sidebar .logo-sub,
+    .sidebar .user-name,
+    .sidebar .user-role,
+    .sidebar .nav-section {
+        display: block;
+    }
+    .sidebar.collapsed .nav-label,
+    .sidebar.collapsed .logo-title,
+    .sidebar.collapsed .logo-sub,
+    .sidebar.collapsed .user-name,
+    .sidebar.collapsed .user-role,
+    .sidebar.collapsed .nav-section {
         display: none;
     }
-    .main-content {
-        padding: 15px;
+    .stat-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* ── Laptop (901px – 1200px): sidebar colapsado por defecto ── */
+@media (min-width: 901px) and (max-width: 1200px) {
+    .sidebar {
+        width: 64px;
+        flex-shrink: 0;
+    }
+    .sidebar .nav-label,
+    .sidebar .logo-title,
+    .sidebar .logo-sub,
+    .sidebar .user-name,
+    .sidebar .user-role,
+    .sidebar .nav-section {
+        display: none;
+    }
+    .sidebar.expanded {
+        width: 230px;
+    }
+    .sidebar.expanded .nav-label,
+    .sidebar.expanded .logo-title,
+    .sidebar.expanded .logo-sub,
+    .sidebar.expanded .user-name,
+    .sidebar.expanded .user-role,
+    .sidebar.expanded .nav-section {
+        display: block;
     }
     .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .grid-2, .grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .main-content {
+        padding: 18px;
+    }
+    .logout-btn {
+        font-size: 11px;
+        padding: 8px 10px;
+    }
+}
+
+/* ── Tablet (601px – 900px): sidebar icono, drawer al expandir ── */
+@media (min-width: 601px) and (max-width: 900px) {
+    .sidebar {
+        width: 64px;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 100;
+    }
+    .sidebar .nav-label,
+    .sidebar .logo-title,
+    .sidebar .logo-sub,
+    .sidebar .user-name,
+    .sidebar .user-role,
+    .sidebar .nav-section {
+        display: none;
+    }
+    .sidebar.expanded {
+        width: 210px;
+        position: absolute;
+        height: 100vh;
+        top: 0;
+        left: 0;
+        z-index: 200;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+    }
+    .sidebar.expanded .nav-label,
+    .sidebar.expanded .logo-title,
+    .sidebar.expanded .logo-sub,
+    .sidebar.expanded .user-name,
+    .sidebar.expanded .user-role,
+    .sidebar.expanded .nav-section {
+        display: block;
+    }
+    .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .grid-2, .grid-3 {
         grid-template-columns: 1fr;
+    }
+    .main-content {
+        padding: 14px;
+    }
+    .topbar {
+        padding: 0 14px;
+    }
+    .logout-btn {
+        font-size: 0;
+        padding: 10px;
+        border-radius: 8px;
+    }
+}
+
+/* ── Celular (≤600px): drawer sobre el contenido ── */
+@media (max-width: 600px) {
+    .app-shell {
+        flex-direction: row;
+        position: relative;
+    }
+    .sidebar {
+        width: 56px;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 100;
+    }
+    .sidebar .nav-label,
+    .sidebar .logo-title,
+    .sidebar .logo-sub,
+    .sidebar .user-name,
+    .sidebar .user-role,
+    .sidebar .nav-section {
+        display: none;
+    }
+    .sidebar:not(.collapsed) {
+        position: absolute;
+        width: 220px;
+        height: 100vh;
+        top: 0;
+        left: 0;
+        z-index: 300;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+    }
+    .sidebar:not(.collapsed) .nav-label,
+    .sidebar:not(.collapsed) .logo-title,
+    .sidebar:not(.collapsed) .logo-sub,
+    .sidebar:not(.collapsed) .user-name,
+    .sidebar:not(.collapsed) .user-role,
+    .sidebar:not(.collapsed) .nav-section {
+        display: block;
+    }
+    .sidebar.collapsed {
+        position: relative;
+        width: 56px;
+    }
+    .stat-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+    }
+    .main-content {
+        padding: 10px;
+    }
+    .topbar {
+        padding: 0 10px;
+    }
+    .page-title {
+        font-size: 14px;
+    }
+    .topbar-date {
+        display: none;
+    }
+    .logout-btn {
+        font-size: 0;
+        padding: 10px;
+    }
+    .form-grid, .form-grid-3 {
+        grid-template-columns: 1fr;
+    }
+    .modal {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    table {
+        font-size: 12px;
+    }
+    th, td {
+        padding: 8px;
     }
 }
