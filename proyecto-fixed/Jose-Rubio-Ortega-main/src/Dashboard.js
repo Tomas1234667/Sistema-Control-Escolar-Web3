@@ -1,25 +1,120 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppDB } from "./App";
-import { Layout } from "./App";
-
+import { useAppDB, Layout } from "./App";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from "recharts";
-
 import { QRCodeCanvas } from "qrcode.react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
+
+/* ── CLIMA con Open-Meteo (gratis, sin API key) ── */
+function useClima() {
+  const [clima, setClima] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    // Ciudad Juárez, Chihuahua: lat 31.6904, lon -106.4245
+    const url =
+      "https://api.open-meteo.com/v1/forecast" +
+      "?latitude=31.6904&longitude=-106.4245" +
+      "&current=temperature_2m,apparent_temperature,relative_humidity_2m," +
+      "wind_speed_10m,wind_direction_10m,weather_code,precipitation" +
+      "&wind_speed_unit=kmh&timezone=America%2FDenver&forecast_days=1";
+
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        const c = data.current;
+        const code = c.weather_code;
+
+        // Icono según WMO weather code
+        const getIcon = (wc) => {
+          if (wc === 0) return "☀️";
+          if (wc <= 2)  return "🌤️";
+          if (wc <= 3)  return "☁️";
+          if (wc <= 49) return "🌫️";
+          if (wc <= 67) return "🌧️";
+          if (wc <= 77) return "🌨️";
+          if (wc <= 82) return "🌦️";
+          if (wc <= 99) return "⛈️";
+          return "🌡️";
+        };
+
+        const getDesc = (wc) => {
+          if (wc === 0)        return "Despejado";
+          if (wc <= 2)         return "Parcialmente nublado";
+          if (wc <= 3)         return "Nublado";
+          if (wc <= 49)        return "Neblina";
+          if (wc <= 67)        return "Lluvia";
+          if (wc <= 77)        return "Nevada";
+          if (wc <= 82)        return "Chubascos";
+          if (wc <= 99)        return "Tormenta";
+          return "Variable";
+        };
+
+        const dirViento = (deg) => {
+          const dirs = ["N","NE","E","SE","S","SO","O","NO"];
+          return dirs[Math.round(deg / 45) % 8];
+        };
+
+        setClima({
+          temp:      Math.round(c.temperature_2m),
+          sensacion: Math.round(c.apparent_temperature),
+          humedad:   c.relative_humidity_2m,
+          viento:    Math.round(c.wind_speed_10m),
+          dirViento: dirViento(c.wind_direction_10m),
+          lluvia:    c.precipitation,
+          icono:     getIcon(code),
+          desc:      getDesc(code),
+        });
+        setCargando(false);
+      })
+      .catch(() => { setError(true); setCargando(false); });
+  }, []);
+
+  return { clima, cargando, error };
+}
+
+function ClimaCard() {
+  const { clima, cargando, error } = useClima();
+
+  if (cargando) return (
+    <div className="weather-card mb-24" style={{ justifyContent: "center" }}>
+      <span style={{ fontSize: 14, opacity: 0.8 }}>⏳ Obteniendo clima en tiempo real…</span>
+    </div>
+  );
+
+  if (error || !clima) return (
+    <div className="weather-card mb-24" style={{ justifyContent: "center" }}>
+      <span style={{ fontSize: 14, opacity: 0.8 }}>🌐 Sin conexión al servicio del clima</span>
+    </div>
+  );
+
+  return (
+    <div className="weather-card mb-24">
+      <div className="weather-left">
+        <div className="weather-icon">{clima.icono}</div>
+        <div>
+          <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 2 }}>Ciudad Juárez, Chihuahua</div>
+          <div className="weather-temp">{clima.temp}°C</div>
+          <div style={{ fontSize: 14, opacity: 0.9 }}>{clima.desc}</div>
+        </div>
+      </div>
+      <div className="weather-right">
+        <div>🌡️ Sensación térmica: <strong>{clima.sensacion}°C</strong></div>
+        <div>💧 Humedad: <strong>{clima.humedad}%</strong></div>
+        <div>💨 Viento: <strong>{clima.viento} km/h {clima.dirViento}</strong></div>
+        {clima.lluvia > 0 && <div>🌧️ Precipitación: <strong>{clima.lluvia} mm</strong></div>}
+        <div style={{ fontSize: 11, opacity: 0.65, marginTop: 4 }}>
+          Actualizado en tiempo real · Open-Meteo
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Dashboard() {
   const db = useAppDB();
@@ -38,40 +133,22 @@ function Dashboard() {
 
   const enRiesgo = db.alumnos.filter((a) => db.nivelRiesgo(a.id) === "alto");
 
-  // Alumnos destacados (top 3 por promedio)
   const destacados = [...db.alumnos]
     .map((a) => ({ ...a, prom: db.promedioAlumno(a.id) }))
     .filter((a) => a.prom !== null)
     .sort((a, b) => b.prom - a.prom)
     .slice(0, 3);
 
-  // PIE CHART
   const pieData = [
-    {
-      name: "Regular",
-      value: db.alumnos.filter((a) => db.nivelRiesgo(a.id) === "bajo").length,
-      color: "#16a34a",
-    },
-    {
-      name: "Seguimiento",
-      value: db.alumnos.filter((a) => db.nivelRiesgo(a.id) === "medio").length,
-      color: "#d97706",
-    },
-    {
-      name: "Alto riesgo",
-      value: enRiesgo.length,
-      color: "#dc2626",
-    },
-  ].filter((d) => d.value > 0);
+    { name:"Regular",     value:db.alumnos.filter(a=>db.nivelRiesgo(a.id)==="bajo").length,  color:"#3a7a5a" },
+    { name:"Seguimiento", value:db.alumnos.filter(a=>db.nivelRiesgo(a.id)==="medio").length, color:"#8a6a20" },
+    { name:"Alto riesgo", value:enRiesgo.length,                                              color:"#8a3a3a" },
+  ].filter(d=>d.value>0);
 
-  // Promedios por grupo (calculados desde datos reales)
   const promedioPorGrupo = db.grupos.map((g) => {
-    const alumnosGrupo = db.alumnos.filter((a) => a.grupo === g.id);
-    const proms = alumnosGrupo.map((a) => db.promedioAlumno(a.id)).filter(Boolean);
-    return {
-      grupo: g.nombre,
-      promedio: proms.length ? +(proms.reduce((a, b) => a + b, 0) / proms.length).toFixed(1) : 0,
-    };
+    const als = db.alumnos.filter(a=>a.grupo===g.id);
+    const proms = als.map(a=>db.promedioAlumno(a.id)).filter(Boolean);
+    return { grupo:g.nombre, promedio: proms.length ? +(proms.reduce((a,b)=>a+b,0)/proms.length).toFixed(1) : 0 };
   });
 
   return (
@@ -81,199 +158,139 @@ function Dashboard() {
         <p>Monitoreo general de alumnos, asistencia y rendimiento académico.</p>
       </div>
 
-      {/* STAT CARDS */}
+      {/* STATS */}
       <div className="stat-grid mb-24">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: "#dbeafe" }}>👨‍🎓</div>
+          <div className="stat-icon" style={{background:"#dde6f5"}}>👨‍🎓</div>
           <div className="stat-label">Total Alumnos</div>
           <div className="stat-value">{totalAlumnos}</div>
           <div className="stat-sub">{db.grupos.length} grupos activos</div>
         </div>
-
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: "#dcfce7" }}>✅</div>
+          <div className="stat-icon" style={{background:"#d6eed9"}}>✅</div>
           <div className="stat-label">Asistencia Hoy</div>
           <div className="stat-value">{pctAsist}%</div>
           <div className="stat-sub">{presentes}/{asistHoy.length} presentes</div>
         </div>
-
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: "#ede9fe" }}>📊</div>
+          <div className="stat-icon" style={{background:"#e8e0f5"}}>📊</div>
           <div className="stat-label">Promedio General</div>
           <div className="stat-value">{promedioGeneral}</div>
           <div className="stat-sub">Ciclo 2024-2025</div>
         </div>
-
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: "#fee2e2" }}>⚠️</div>
+          <div className="stat-icon" style={{background:"#f5dede"}}>⚠️</div>
           <div className="stat-label">Alumnos en Riesgo</div>
-          <div className="stat-value" style={{ color: enRiesgo.length > 0 ? "#dc2626" : "#16a34a" }}>
-            {enRiesgo.length}
-          </div>
+          <div className="stat-value" style={{color:enRiesgo.length>0?"#8a3a3a":"#3a7a5a"}}>{enRiesgo.length}</div>
           <div className="stat-sub">Requieren atención urgente</div>
         </div>
       </div>
 
-      {/* CLIMA */}
-      <div className="weather-card mb-24">
-        <div className="weather-left">
-          <div className="weather-icon">☀️</div>
-          <div>
-            <h3>Clima Escolar</h3>
-            <p className="weather-temp">39° C</p>
-            <span>Ciudad Juárez, Chihuahua</span>
-          </div>
-        </div>
-        <div className="weather-right">
-          <div>🌡️ Sensación: 37° C</div>
-          <div>💨 Viento: 15 km/h</div>
-        </div>
-      </div>
+      {/* CLIMA EN TIEMPO REAL */}
+      <ClimaCard />
 
-      {/* ALERTAS DE RIESGO */}
+      {/* ALERTAS */}
       {enRiesgo.map((a) => (
-        <div
-          key={a.id}
-          className="alert alert-danger mb-8"
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}
-        >
-          <span style={{ fontSize: 20 }}>🚨</span>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "12px" }}>
-            <div className="avatar">
-              {a.nombre.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-            </div>
+        <div key={a.id} className="alert alert-danger mb-8"
+          style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <span style={{fontSize:20}}>🚨</span>
+          <div style={{flex:1,display:"flex",alignItems:"center",gap:12}}>
+            <div className="avatar">{a.nombre.split(" ").map(n=>n[0]).slice(0,2).join("")}</div>
             <div>
-              <strong>{a.nombre}</strong>
-              {" "}— En riesgo escolar
+              <strong>{a.nombre}</strong> — En riesgo escolar
               <div className="small muted">
-                {db.faltasAlumno(a.id)} faltas · Promedio: {db.promedioAlumno(a.id) ?? "--"} · Grupo: {a.grupo}
+                {db.faltasAlumno(a.id)} faltas · Promedio: {db.promedioAlumno(a.id)??"--"} · Grupo: {a.grupo}
               </div>
             </div>
           </div>
-          <button className="btn btn-sm btn-danger" onClick={() => navigate("/riesgo")}>
-            Ver alertas
-          </button>
+          <button className="btn btn-sm btn-danger" onClick={()=>navigate("/riesgo")}>Ver alertas</button>
         </div>
       ))}
 
       {/* QR + CALENDARIO */}
-      <div className="grid-2 mb-24" style={{ marginTop: enRiesgo.length ? 16 : 0 }}>
-
-        {/* QR Y ASISTENCIA */}
+      <div className="grid-2 mb-24" style={{marginTop:enRiesgo.length?16:0}}>
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">Control de Asistencia</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: 20 }}>
+          <div className="card-header"><div className="card-title">Control de Asistencia</div></div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:18,padding:16}}>
             <QRCodeCanvas value="https://sistema-control-escolar-web3.onrender.com/" size={130} />
-            <div className="small muted">Escanee el código QR para acceder más rápido desde tu celular</div>
-            <div style={{ width: "100%", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
-              <div style={{ marginBottom: "6px" }}>👨‍🎓 Alumnos: {totalAlumnos}</div>
-              <div style={{ marginBottom: "6px" }}>🏫 Grupos: {db.grupos.length}</div>
+            <div className="small muted" style={{textAlign:"center"}}>
+              Escanea el código QR para acceder desde tu celular
+            </div>
+            <div style={{width:"100%",background:"var(--bg-base)",border:"1px solid var(--border)",borderRadius:10,padding:12}}>
+              <div style={{marginBottom:6}}>👨‍🎓 Alumnos: {totalAlumnos}</div>
+              <div style={{marginBottom:6}}>🏫 Grupos: {db.grupos.length}</div>
               <div>⚠️ En riesgo: {enRiesgo.length}</div>
             </div>
-            <button className="btn btn-primary" style={{ width: "100%", padding: 14, fontSize: 16 }} onClick={() => navigate("/asistencia")}>
-              ✅ Tomar asistencia
-            </button>
+            <button className="btn btn-primary" style={{width:"100%",padding:12}}
+              onClick={()=>navigate("/asistencia")}>✅ Tomar asistencia</button>
           </div>
         </div>
 
-        {/* CALENDARIO + PIE RIESGO */}
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">Calendario Escolar</div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+          <div className="card-header"><div className="card-title">Calendario Escolar</div></div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
             <Calendar />
           </div>
-          <div className="card-header">
-            <div className="card-title">Distribución de Riesgo</div>
-          </div>
-          {pieData.length > 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <ResponsiveContainer width="60%" height={180}>
+          <div className="card-header"><div className="card-title">Distribución de Riesgo</div></div>
+          {pieData.length>0 ? (
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <ResponsiveContainer width="55%" height={160}>
                 <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value">
-                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} dataKey="value">
+                    {pieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
                   </Pie>
-                  <Tooltip formatter={(v, n) => [v + " alumnos", n]} />
+                  <Tooltip formatter={(v,n)=>[v+" alumnos",n]}/>
                 </PieChart>
               </ResponsiveContainer>
-              <div style={{ flex: 1 }}>
-                {pieData.map((d, i) => (
-                  <div key={i} className="flex-center gap-8 mb-8">
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
+              <div style={{flex:1}}>
+                {pieData.map((d,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                    <div style={{width:10,height:10,borderRadius:"50%",background:d.color,flexShrink:0}}/>
                     <span className="small">{d.name}</span>
-                    <strong style={{ marginLeft: "auto" }}>{d.value}</strong>
+                    <strong style={{marginLeft:"auto"}}>{d.value}</strong>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="empty-state">
-              <div className="empty-icon">✨</div>
-              <div className="empty-title">Sin datos suficientes</div>
-            </div>
+            <div className="empty-state"><div className="empty-icon">✨</div><div className="empty-title">Sin datos</div></div>
           )}
         </div>
       </div>
 
-      {/* GRÁFICA RENDIMIENTO POR GRUPO */}
+      {/* RENDIMIENTO POR GRUPO */}
       <div className="card mb-24">
-        <div className="card-header">
-          <div className="card-title">Rendimiento por Grupo</div>
-        </div>
-        <ResponsiveContainer width="100%" height={320}>
+        <div className="card-header"><div className="card-title">Rendimiento por Grupo</div></div>
+        <ResponsiveContainer width="100%" height={300}>
           <BarChart data={promedioPorGrupo}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="grupo" />
-            <YAxis domain={[0, 10]} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="promedio" fill="#2563eb" radius={[8, 8, 0, 0]} />
+            <CartesianGrid strokeDasharray="3 3"/>
+            <XAxis dataKey="grupo" tick={{fontSize:11}}/>
+            <YAxis domain={[0,10]}/>
+            <Tooltip/>
+            <Legend/>
+            <Bar dataKey="promedio" fill="#4a6fa5" radius={[6,6,0,0]}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ACTIVIDAD RECIENTE */}
+      {/* ALUMNOS DESTACADOS */}
       <div className="card mb-24">
-        <div className="card-header">
-          <div className="card-title">📋 Actividad Reciente</div>
-        </div>
-        <div className="activity-item"><span>🟢 08:00</span><p>Asistencia registrada para el grupo 3° A</p></div>
-        <div className="activity-item"><span>🔵 09:15</span><p>Calificación actualizada en Matemáticas</p></div>
-        <div className="activity-item"><span>🟣 10:30</span><p>Nuevo alumno agregado al sistema</p></div>
-        <div className="activity-item"><span>🟠 11:45</span><p>Reporte académico generado</p></div>
-      </div>
-
-      {/* ALUMNOS DESTACADOS (dinámico) */}
-      <div className="card mb-24">
-        <div className="card-header">
-          <div className="card-title">Alumnos Destacados</div>
-        </div>
+        <div className="card-header"><div className="card-title">🏆 Alumnos Destacados</div></div>
         <div className="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>Posición</th>
-                <th>Alumno</th>
-                <th>Promedio</th>
-                <th>Grupo</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Pos.</th><th>Alumno</th><th>Promedio</th><th>Grupo</th></tr></thead>
             <tbody>
-              {destacados.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "#94a3b8" }}>Sin datos de calificaciones</td></tr>
-              ) : (
-                destacados.map((a, i) => (
+              {destacados.length===0
+                ? <tr><td colSpan={4} style={{textAlign:"center",color:"var(--text-muted)"}}>Sin datos de calificaciones</td></tr>
+                : destacados.map((a,i)=>(
                   <tr key={a.id}>
-                    <td>{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</td>
+                    <td>{i===0?"🥇":i===1?"🥈":"🥉"}</td>
                     <td>{a.nombre}</td>
-                    <td><strong style={{ color: "#16a34a" }}>{a.prom.toFixed(1)}</strong></td>
+                    <td><strong style={{color:"#3a7a5a"}}>{a.prom.toFixed(1)}</strong></td>
                     <td>{a.grupo}</td>
                   </tr>
                 ))
-              )}
+              }
             </tbody>
           </table>
         </div>
@@ -282,31 +299,27 @@ function Dashboard() {
       {/* AVISOS */}
       <div className="card">
         <div className="card-header">
-          <div className="card-title">Próximos Avisos</div>
-          <button className="btn btn-sm" onClick={() => navigate("/avisos")}>Ver todos</button>
+          <div className="card-title">🔔 Próximos Avisos</div>
+          <button className="btn btn-sm" onClick={()=>navigate("/avisos")}>Ver todos</button>
         </div>
-        {db.avisos.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">🔔</div>
-            <div className="empty-title">Sin avisos</div>
-          </div>
-        ) : (
-          db.avisos.slice(0, 3).map((av) => (
+        {db.avisos.length===0
+          ? <div className="empty-state"><div className="empty-icon">🔔</div><div className="empty-title">Sin avisos</div></div>
+          : db.avisos.slice(0,3).map(av=>(
             <div key={av.id} className="aviso-item">
-              <div className="aviso-icon" style={{ background: "#dbeafe" }}>
-                {av.tipo === "reunion" ? "🤝" : av.tipo === "calificaciones" ? "📝" : "📅"}
+              <div className="aviso-icon">
+                {av.tipo==="reunion"?"🤝":av.tipo==="calificaciones"?"📝":"📅"}
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{flex:1}}>
                 <div className="aviso-title">{av.titulo}</div>
                 <div className="aviso-desc">{av.desc}</div>
               </div>
               <div className="aviso-meta">
                 <div className="aviso-fecha">{av.fecha}</div>
-                <span className="badge badge-info" style={{ marginTop: 4 }}>{av.grupo}</span>
+                <span className="badge badge-info" style={{marginTop:4}}>{av.grupo}</span>
               </div>
             </div>
           ))
-        )}
+        }
       </div>
     </Layout>
   );
