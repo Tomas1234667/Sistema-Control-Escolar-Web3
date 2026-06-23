@@ -1,42 +1,74 @@
 import "./login.css";
 import React, { useState, useEffect } from "react";
+import { useDB } from "./useDB";
+
+/* 
+  Perfiles:
+  - admin  → usuario: "admin",  contraseña: "1234"   (Directora - ve TODO)
+  - maestro → usuario: m1..m12, contraseña: "1111"   (Maestro - NO ve módulo Maestros)
+*/
 
 function Login({ onLogin }) {
-  const [usuario,  setUsuario]  = useState("");
-  const [password, setPassword] = useState("");
-  const [mostrar,  setMostrar]  = useState(false);
-  const [error,    setError]    = useState("");
-  const [cargando, setCargando] = useState(false);
-  const [hora,     setHora]     = useState("");
+  const db = useDB();
+  const [tipoPerfil, setTipoPerfil] = useState("admin");
+  const [usuario,    setUsuario]    = useState("");
+  const [password,   setPassword]   = useState("");
+  const [mostrar,    setMostrar]    = useState(false);
+  const [error,      setError]      = useState("");
+  const [cargando,   setCargando]   = useState(false);
+  const [hora,       setHora]       = useState("");
 
-  useEffect(() => {
-    const iv = setInterval(() => setHora(new Date().toLocaleTimeString("es-MX")), 1000);
-    return () => clearInterval(iv);
-  }, []);
+  useEffect(()=>{
+    const iv = setInterval(()=>setHora(new Date().toLocaleTimeString("es-MX")),1000);
+    return ()=>clearInterval(iv);
+  },[]);
+
+  // Cuando cambia el tipo de perfil, limpia campos
+  const handleTipoPerfil = (v) => {
+    setTipoPerfil(v);
+    setUsuario("");
+    setPassword("");
+    setError("");
+  };
 
   const iniciarSesion = (e) => {
     e.preventDefault();
     setError(""); setCargando(true);
-    setTimeout(() => {
-      if (usuario === "admin" && password === "1234") {
-        localStorage.setItem("auth", "true");
-        if (onLogin) onLogin();
+    setTimeout(()=>{
+      if(tipoPerfil==="admin"){
+        if(usuario==="admin" && password==="1234"){
+          localStorage.setItem("auth","true");
+          localStorage.setItem("rol","admin");
+          localStorage.setItem("authNombre","Ma. Norma Alvarez");
+          localStorage.setItem("authGrupo","");
+          if(onLogin) onLogin({ rol:"admin", nombre:"Ma. Norma Alvarez", grupo:"" });
+        } else {
+          setError("Usuario o contraseña incorrectos");
+        }
       } else {
-        setError("Usuario o contraseña incorrectos");
+        // Maestro
+        const maestro = db.loginMaestro(usuario, password);
+        if(maestro){
+          localStorage.setItem("auth","true");
+          localStorage.setItem("rol","maestro");
+          localStorage.setItem("authNombre",maestro.nombre);
+          localStorage.setItem("authGrupo",maestro.grupo);
+          localStorage.setItem("authMaestroId",maestro.id);
+          if(onLogin) onLogin({ rol:"maestro", nombre:maestro.nombre, grupo:maestro.grupo, maestroId:maestro.id });
+        } else {
+          setError("Usuario o contraseña incorrectos");
+        }
       }
       setCargando(false);
-    }, 1500);
+    },1200);
   };
 
   return (
     <div className="lp-page">
-      {/* burbujas decorativas */}
-      <div className="lp-bubble lp-bubble--1" />
-      <div className="lp-bubble lp-bubble--2" />
+      <div className="lp-bubble lp-bubble--1"/>
+      <div className="lp-bubble lp-bubble--2"/>
 
       <div className="lp-card">
-
-        {/* LOGO */}
         <div className="lp-header">
           <div className="lp-icon">🎓</div>
           <h1 className="lp-title">EduGestión</h1>
@@ -44,67 +76,95 @@ function Login({ onLogin }) {
           <div className="lp-clock">🕒 {hora}</div>
         </div>
 
-        {/* FORM */}
         <form onSubmit={iniciarSesion} className="lp-form">
 
-          {/* Tipo usuario */}
+          {/* TIPO DE PERFIL — solo admin o maestro */}
           <div className="lp-field">
-            <label className="lp-label">🎓 Tipo de usuario</label>
-            <select className="lp-input">
-              <option>Administrador</option>
-              <option>Maestro</option>
-              <option>Alumno</option>
-            </select>
-          </div>
-
-          {/* Usuario */}
-          <div className="lp-field">
-            <label className="lp-label">👤 Usuario</label>
-            <input
-              type="text"
-              className="lp-input"
-              placeholder="Ingresa tu usuario"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-              autoComplete="username"
-            />
-          </div>
-
-          {/* Contraseña */}
-          <div className="lp-field">
-            <label className="lp-label">🔒 Contraseña</label>
-            <div className="lp-pass-wrap">
-              <input
-                type={mostrar ? "text" : "password"}
-                className="lp-input lp-input--pass"
-                placeholder="Ingresa tu contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
+            <label className="lp-label">🎓 Perfil de acceso</label>
+            <div style={{display:"flex",gap:10,marginTop:4}}>
               <button
                 type="button"
-                className="lp-eye"
-                onClick={() => setMostrar((v) => !v)}
-                aria-label={mostrar ? "Ocultar" : "Mostrar"}
+                onClick={()=>handleTipoPerfil("admin")}
+                style={{
+                  flex:1,padding:"10px 8px",borderRadius:10,border:"2px solid",
+                  borderColor: tipoPerfil==="admin" ? "#2563eb" : "#e2e8f0",
+                  background: tipoPerfil==="admin" ? "#eff6ff" : "#fff",
+                  color: tipoPerfil==="admin" ? "#1d4ed8" : "#64748b",
+                  fontWeight:700,fontSize:14,cursor:"pointer",transition:"all .2s"
+                }}
               >
-                {mostrar ? "🙈" : "👁️"}
+                👩‍💼 Administrador
+                <div style={{fontSize:11,fontWeight:400,marginTop:2}}>Directora</div>
+              </button>
+              <button
+                type="button"
+                onClick={()=>handleTipoPerfil("maestro")}
+                style={{
+                  flex:1,padding:"10px 8px",borderRadius:10,border:"2px solid",
+                  borderColor: tipoPerfil==="maestro" ? "#16a34a" : "#e2e8f0",
+                  background: tipoPerfil==="maestro" ? "#f0fdf4" : "#fff",
+                  color: tipoPerfil==="maestro" ? "#15803d" : "#64748b",
+                  fontWeight:700,fontSize:14,cursor:"pointer",transition:"all .2s"
+                }}
+              >
+                👩‍🏫 Maestro
+                <div style={{fontSize:11,fontWeight:400,marginTop:2}}>Docente</div>
               </button>
             </div>
           </div>
 
-          {/* Opciones */}
-          <div className="lp-options">
-            <label className="lp-remember">
-              <input type="checkbox" /> Recordarme
-            </label>
-            <span className="lp-forgot">¿Olvidaste tu contraseña?</span>
+          {/* USUARIO */}
+          <div className="lp-field">
+            <label className="lp-label">👤 {tipoPerfil==="admin" ? "Usuario" : "Usuario del maestro"}</label>
+            <input
+              type="text"
+              className="lp-input"
+              placeholder={tipoPerfil==="admin" ? "Ej: admin" : "Ej: m1, m2, m3..."}
+              value={usuario}
+              onChange={e=>setUsuario(e.target.value)}
+              autoComplete="username"
+            />
+            {tipoPerfil==="maestro" && (
+              <div style={{fontSize:12,color:"#64748b",marginTop:4}}>
+                Tu usuario es m1–m12 según tu grupo asignado
+              </div>
+            )}
           </div>
 
-          {/* Error */}
+          {/* CONTRASEÑA */}
+          <div className="lp-field">
+            <label className="lp-label">🔒 Contraseña</label>
+            <div className="lp-pass-wrap">
+              <input
+                type={mostrar?"text":"password"}
+                className="lp-input lp-input--pass"
+                placeholder={tipoPerfil==="admin" ? "Contraseña admin" : "Contraseña del maestro"}
+                value={password}
+                onChange={e=>setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              <button type="button" className="lp-eye"
+                onClick={()=>setMostrar(v=>!v)}
+                aria-label={mostrar?"Ocultar":"Mostrar"}>
+                {mostrar?"🙈":"👁️"}
+              </button>
+            </div>
+          </div>
+
+          {/* Hint credenciales */}
+          <div style={{
+            background: tipoPerfil==="admin" ? "#eff6ff" : "#f0fdf4",
+            border:`1px solid ${tipoPerfil==="admin"?"#bfdbfe":"#bbf7d0"}`,
+            borderRadius:8,padding:"8px 12px",fontSize:12,marginBottom:4
+          }}>
+            {tipoPerfil==="admin"
+              ? "💡 Admin: usuario <strong>admin</strong> · contraseña <strong>1234</strong>"
+              : "💡 Maestro: usuario <strong>m1</strong> al <strong>m12</strong> · contraseña <strong>1111</strong>"
+            }
+          </div>
+
           {error && <div className="lp-error">❌ {error}</div>}
 
-          {/* Botón */}
           <button type="submit" className="lp-btn" disabled={cargando}>
             {cargando ? "⏳ Verificando..." : "🚀 Iniciar Sesión"}
           </button>
