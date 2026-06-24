@@ -151,17 +151,7 @@ function Login({ onLogin }) {
             </div>
           </div>
 
-          {/* Hint credenciales */}
-          <div style={{
-            background: tipoPerfil==="admin" ? "#eff6ff" : "#f0fdf4",
-            border:`1px solid ${tipoPerfil==="admin"?"#bfdbfe":"#bbf7d0"}`,
-            borderRadius:8,padding:"8px 12px",fontSize:12,marginBottom:4
-          }}>
-            {tipoPerfil==="admin"
-              ? "💡 Admin: usuario <strong>admin</strong> · contraseña <strong>1234</strong>"
-              : "💡 Maestro: usuario <strong>m1</strong> al <strong>m12</strong> · contraseña <strong>1111</strong>"
-            }
-          </div>
+
 
           {error && <div className="lp-error">❌ {error}</div>}
 

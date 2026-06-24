@@ -95,7 +95,7 @@ function Sidebar({ collapsed, setCollapsed, nav, auth, onLogout }) {
   );
 }
 
-function BottomNav({ nav }) {
+function BottomNav({ nav, onLogout }) {
   const items = nav.filter(n=>
     ["/","/alumnos","/asistencia","/avisos","/riesgo"].includes(n.to)
   );
@@ -108,6 +108,10 @@ function BottomNav({ nav }) {
           <span className="bnav-label">{label}</span>
         </NavLink>
       ))}
+      <button className="bnav-logout" onClick={onLogout} title="Cerrar sesión">
+        <span className="bnav-icon">🚪</span>
+        <span>Salir</span>
+      </button>
     </nav>
   );
 }
@@ -189,7 +193,7 @@ function App() {
               </Routes>
             </div>
 
-            <BottomNav nav={nav}/>
+            <BottomNav nav={nav} onLogout={handleLogout}/>
           </div>
 
           <Toaster position="top-right" toastOptions={{duration:3000}}/>
