@@ -1,0 +1,185 @@
+/* ═══════════════════════════════════════════
+   LOGIN — Responsivo 4 dispositivos
+   Paleta accesible: azul-pizarra oscuro suave
+═══════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ── PÁGINA ── */
+.lp-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e2a36 0%, #2c3a4a 50%, #3d4f62 100%);
+  background-size: 200% 200%;
+  animation: lp-bg 14s ease infinite;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+@keyframes lp-bg {
+  0%,100% { background-position: 0% 50%;   }
+  50%      { background-position: 100% 50%; }
+}
+
+/* ── BURBUJAS ── */
+.lp-bubble {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  pointer-events: none;
+  z-index: 0;
+}
+.lp-bubble--1 { width: 320px; height: 320px; background: #5a8ab8; top: -120px; left: -120px; opacity: .28; }
+.lp-bubble--2 { width: 260px; height: 260px; background: #5a8a70; bottom: -100px; right: -100px; opacity: .28; }
+
+/* ── CARD ── */
+.lp-card {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 460px;
+  background: rgba(250,248,244,.97);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(200,194,182,.5);
+  border-radius: 22px;
+  padding: 40px 38px;
+  color: #2d2d2d;
+  box-shadow: 0 12px 44px rgba(0,0,0,.28);
+  animation: lp-in .55s ease;
+}
+@keyframes lp-in {
+  from { opacity: 0; transform: translateY(20px) scale(.97); }
+}
+
+/* ── HEADER ── */
+.lp-header    { text-align: center; margin-bottom: 26px; }
+.lp-icon      { font-size: 58px; line-height: 1; margin-bottom: 10px; }
+.lp-title     { font-size: 30px; font-weight: 800; color: #4a6fa5; margin: 0 0 4px; }
+.lp-sub       { font-size: 14px; color: #6a6a6a; margin: 0 0 6px; }
+.lp-clock     { font-size: 13px; color: #8a8a8a; }
+
+/* ── FORM ── */
+.lp-form  { display: flex; flex-direction: column; gap: 15px; }
+.lp-field { display: flex; flex-direction: column; gap: 5px; }
+.lp-label { font-size: 13px; font-weight: 600; color: #5a5a5a; }
+
+.lp-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #c8c2b6;
+  border-radius: 10px;
+  font-size: 15px; /* ≥16px evita zoom en iOS */
+  font-family: inherit;
+  background: #fff;
+  color: #2d2d2d;
+  outline: none;
+  transition: border .2s, box-shadow .2s;
+  box-sizing: border-box;
+}
+.lp-input:focus {
+  border-color: #4a6fa5;
+  box-shadow: 0 0 0 3px rgba(74,111,165,.14);
+}
+.lp-input::placeholder { color: #aaa; }
+.lp-input option { background: #fff; color: #2d2d2d; }
+
+/* contraseña con ojo */
+.lp-pass-wrap { position: relative; display: flex; align-items: center; }
+.lp-input--pass { padding-right: 46px; }
+.lp-eye {
+  position: absolute; right: 12px;
+  background: none; border: none; cursor: pointer;
+  font-size: 19px; color: #8a8a8a;
+  display: flex; align-items: center;
+  padding: 4px; border-radius: 6px;
+  transition: background .15s;
+}
+.lp-eye:hover { background: rgba(0,0,0,.06); }
+
+/* opciones */
+.lp-options {
+  display: flex; justify-content: space-between;
+  align-items: center; font-size: 13px; color: #5a5a5a;
+  flex-wrap: wrap; gap: 6px;
+}
+.lp-remember { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.lp-remember input { accent-color: #4a6fa5; }
+.lp-forgot   { color: #4a6fa5; cursor: pointer; font-size: 12px; }
+.lp-forgot:hover { text-decoration: underline; }
+
+/* error */
+.lp-error {
+  background: #f5dede; border: 1px solid #e0b0b0;
+  color: #7a2a2a; padding: 11px 14px;
+  border-radius: 10px; font-size: 13px;
+  text-align: center; font-weight: 600;
+}
+
+/* botón */
+.lp-btn {
+  width: 100%; padding: 14px;
+  border: none; border-radius: 11px;
+  background: #4a6fa5; color: #fff;
+  font-size: 15px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  transition: background .2s, transform .15s, box-shadow .15s;
+  box-shadow: 0 4px 14px rgba(74,111,165,.25);
+  margin-top: 2px;
+}
+.lp-btn:hover:not(:disabled) {
+  background: #3b5d8a;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(74,111,165,.32);
+}
+.lp-btn:disabled { opacity: .7; cursor: not-allowed; }
+
+/* footer */
+.lp-footer {
+  text-align: center; font-size: 12px;
+  color: #8a8a8a; margin-top: 22px; margin-bottom: 0;
+}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+
+/* Laptop ≤ 1200px */
+@media (max-width: 1200px) {
+  .lp-card  { max-width: 420px; padding: 36px 32px; }
+  .lp-title { font-size: 27px; }
+  .lp-icon  { font-size: 52px; }
+}
+
+/* Tablet ≤ 900px */
+@media (max-width: 900px) {
+  .lp-page { padding: 24px 16px; }
+  .lp-card { max-width: 100%; padding: 32px 24px; border-radius: 18px; }
+  .lp-title { font-size: 25px; }
+  .lp-icon  { font-size: 50px; }
+  /* font-size 16px evita zoom automático en iOS */
+  .lp-input { font-size: 16px; }
+}
+
+/* Móvil ≤ 600px */
+@media (max-width: 600px) {
+  .lp-page { padding: 14px; align-items: flex-start; padding-top: 28px; }
+  .lp-card { padding: 26px 18px; border-radius: 16px; }
+  .lp-header { margin-bottom: 20px; }
+  .lp-icon  { font-size: 46px; }
+  .lp-title { font-size: 23px; }
+  .lp-sub   { font-size: 13px; }
+  .lp-form  { gap: 13px; }
+  .lp-input { padding: 12px 13px; font-size: 16px; border-radius: 9px; }
+  .lp-btn   { padding: 14px; font-size: 15px; }
+  .lp-options { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .lp-bubble--1 { width: 180px; height: 180px; }
+  .lp-bubble--2 { width: 150px; height: 150px; }
+}
+
+/* Móvil pequeño ≤ 380px */
+@media (max-width: 380px) {
+  .lp-card  { padding: 22px 14px; }
+  .lp-icon  { font-size: 40px; }
+  .lp-title { font-size: 21px; }
+}
