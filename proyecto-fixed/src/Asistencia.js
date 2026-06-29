@@ -8,13 +8,6 @@ const ESTADO_ICON  = { presente:"✅", ausente:"❌", justificado:"📋" };
 const ESTADO_LABEL = { presente:"Presente", ausente:"Ausente", justificado:"Justificado" };
 const ESTADO_COLOR = { presente:"#16a34a", ausente:"#dc2626", justificado:"#d97706" };
 
-/* Ciclo escolar SEP México 2026-2027:
-   Inicio: 24 agosto 2026 | Fin: 18 junio 2027
-   ~185 días hábiles. Periodos de vacaciones principales:
-   - Navidad: 21 dic – 9 ene
-   - Semana Santa: 29 mar – 2 abr
-   - Suspensiones nacionales ~5 días
-*/
 const CICLO_INICIO = new Date("2026-08-24");
 const CICLO_FIN    = new Date("2027-06-18");
 const DIAS_HABILES_CICLO = 185;
@@ -24,12 +17,224 @@ function diasTranscurridos() {
   const fin  = hoy < CICLO_FIN ? hoy : CICLO_FIN;
   if (fin < CICLO_INICIO) return 0;
   const diff = Math.floor((fin - CICLO_INICIO) / (1000*60*60*24));
-  // aprox 70% días hábiles
   return Math.min(Math.round(diff * 0.7), DIAS_HABILES_CICLO);
 }
 
 const padZ = n => String(n).padStart(2,"0");
 const fmt  = (y,m,d) => `${y}-${padZ(m+1)}-${padZ(d)}`;
+
+/* ── DESCARGA DE ASISTENCIA ── */
+
+// Genera y descarga un CSV con la asistencia
+function descargarCSV(filas, nombreArchivo) {
+  const contenido = filas.map(f => f.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = nombreArchivo;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Descarga asistencia de todo el grupo en el periodo seleccionado
+function descargarAsistenciaGrupo(grupo, maestro, alumnos, todasAsistencias, fechaInicio, fechaFin) {
+  // Obtener fechas únicas del rango
+  const fechas = [];
+  const d = new Date(fechaInicio);
+  const fin = new Date(fechaFin);
+  while (d <= fin) {
+    const ds = d.toISOString().slice(0,10);
+    fechas.push(ds);
+    d.setDate(d.getDate()+1);
+  }
+
+  const encabezado = ["Alumno", ...fechas, "Presentes", "Ausentes", "Justificados", "% Asistencia"];
+  const filas = [encabezado];
+
+  alumnos.forEach(al => {
+    const reg = {};
+    todasAsistencias.filter(a=>a.alumnoId===al.id).forEach(a=>{ reg[a.fecha]=a.estado; });
+
+    const row = [al.nombre];
+    let pres=0, aus=0, just=0, total=0;
+    fechas.forEach(f => {
+      const est = reg[f];
+      row.push(est ? ESTADO_LABEL[est] : "Sin registro");
+      if (est) {
+        total++;
+        if (est==="presente") pres++;
+        else if (est==="ausente") aus++;
+        else if (est==="justificado") just++;
+      }
+    });
+    const pct = total > 0 ? Math.round((pres/total)*100)+"%" : "—";
+    row.push(pres, aus, just, pct);
+    filas.push(row);
+  });
+
+  const fechaHoy = new Date().toISOString().slice(0,10);
+  descargarCSV(filas, `Asistencia_${grupo?.nombre||"Grupo"}_${fechaInicio}_${fechaFin}.csv`);
+}
+
+// Descarga asistencia de un alumno individual
+function descargarAsistenciaAlumno(alumno, grupo, asistencias, fechaInicio, fechaFin) {
+  const d   = new Date(fechaInicio);
+  const fin = new Date(fechaFin);
+  const reg = {};
+  asistencias.filter(a=>a.alumnoId===alumno.id).forEach(a=>{ reg[a.fecha]=a.estado; });
+
+  const filasTitulo = [
+    ["Reporte de Asistencia Individual"],
+    ["Alumno:", alumno.nombre],
+    ["Grupo:", grupo?.nombre || "—"],
+    ["Periodo:", `${fechaInicio} al ${fechaFin}`],
+    [""],
+    ["Fecha", "Estado"],
+  ];
+
+  let pres=0, aus=0, just=0, total=0;
+  const filasData = [];
+  const dc = new Date(d);
+  while (dc <= fin) {
+    const ds = dc.toISOString().slice(0,10);
+    const est = reg[ds];
+    if (est) {
+      total++;
+      if (est==="presente") pres++;
+      else if (est==="ausente") aus++;
+      else if (est==="justificado") just++;
+      filasData.push([ds, ESTADO_LABEL[est]]);
+    }
+    dc.setDate(dc.getDate()+1);
+  }
+
+  const pct = total > 0 ? Math.round((pres/total)*100)+"%" : "—";
+  const resumen = [
+    [""],
+    ["Resumen"],
+    ["Total días registrados:", total],
+    ["Presentes:", pres],
+    ["Ausentes:", aus],
+    ["Justificados:", just],
+    ["% Asistencia:", pct],
+  ];
+
+  const todasFilas = [...filasTitulo, ...filasData, ...resumen];
+  descargarCSV(todasFilas, `Asistencia_${alumno.nombre.replace(/ /g,"_")}_${fechaInicio}_${fechaFin}.csv`);
+}
+
+/* ── MODAL DESCARGA ASISTENCIA ── */
+function ModalDescarga({ grupoId, alumnos, db, onClose }) {
+  const grupo   = db.grupos.find(g=>g.id===grupoId);
+  const hoy     = new Date().toISOString().slice(0,10);
+  const inicioC = CICLO_INICIO.toISOString().slice(0,10);
+
+  const [modo,       setModo]       = useState("grupo");   // "grupo" | "alumno"
+  const [alumnoId,   setAlumnoId]   = useState(alumnos[0]?.id || "");
+  const [fechaInicio,setFechaInicio]= useState(inicioC);
+  const [fechaFin,   setFechaFin]   = useState(hoy);
+
+  const maestro = grupo ? db.maestros.find(m=>m.id===grupo.maestroId) : null;
+
+  const handleDescargar = () => {
+    if (!fechaInicio || !fechaFin) { toast.error("Selecciona el periodo"); return; }
+    if (fechaInicio > fechaFin) { toast.error("La fecha de inicio debe ser antes que la final"); return; }
+
+    if (modo === "grupo") {
+      descargarAsistenciaGrupo(grupo, maestro, alumnos, db.asistencia, fechaInicio, fechaFin);
+      toast.success(`Descargando asistencia del grupo ${grupo?.nombre}…`);
+    } else {
+      const al = alumnos.find(a=>a.id===alumnoId);
+      if (!al) { toast.error("Selecciona un alumno"); return; }
+      descargarAsistenciaAlumno(al, grupo, db.asistencia, fechaInicio, fechaFin);
+      toast.success(`Descargando asistencia de ${al.nombre}…`);
+    }
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <div className="modal-title">📥 Descargar Asistencia</div>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Selector modo */}
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          <button className={`btn btn-sm ${modo==="grupo"?"btn-primary":""}`}
+            style={{flex:1}} onClick={()=>setModo("grupo")}>
+            👥 Por Grupo
+          </button>
+          <button className={`btn btn-sm ${modo==="alumno"?"btn-primary":""}`}
+            style={{flex:1}} onClick={()=>setModo("alumno")}>
+            👤 Por Alumno
+          </button>
+        </div>
+
+        {/* Info grupo */}
+        <div style={{padding:"8px 12px",background:"var(--bg-base)",borderRadius:8,marginBottom:14,fontSize:13}}>
+          <strong>Grupo:</strong> {grupo?.nombre || grupoId}
+          {maestro && <span className="muted"> · Titular: {maestro.nombre}</span>}
+        </div>
+
+        {/* Selector alumno si es modo alumno */}
+        {modo === "alumno" && (
+          <div className="form-group" style={{marginBottom:14}}>
+            <label className="form-label">Alumno</label>
+            <select className="form-control" value={alumnoId} onChange={e=>setAlumnoId(e.target.value)}>
+              {alumnos.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Periodo */}
+        <div className="form-grid" style={{marginBottom:14}}>
+          <div className="form-group">
+            <label className="form-label">Fecha inicio</label>
+            <input type="date" className="form-control" value={fechaInicio}
+              onChange={e=>setFechaInicio(e.target.value)} min={inicioC} max={hoy}/>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Fecha fin</label>
+            <input type="date" className="form-control" value={fechaFin}
+              onChange={e=>setFechaFin(e.target.value)} min={inicioC} max={hoy}/>
+          </div>
+        </div>
+
+        {/* Accesos rápidos periodo */}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+          <span className="small muted" style={{alignSelf:"center"}}>Acceso rápido:</span>
+          {[
+            {lbl:"Ciclo completo", ini:inicioC, fin:hoy},
+            {lbl:"Este mes", ini:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10), fin:hoy},
+            {lbl:"1er Trimestre", ini:"2026-08-24", fin:"2026-11-28"},
+            {lbl:"2do Trimestre", ini:"2026-12-01", fin:"2027-03-14"},
+            {lbl:"3er Trimestre", ini:"2027-03-17", fin:"2027-06-18"},
+          ].map(({lbl,ini,fin})=>(
+            <button key={lbl} className="btn btn-sm"
+              onClick={()=>{setFechaInicio(ini);setFechaFin(fin>hoy?hoy:fin);}}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        <div style={{padding:"8px 12px",background:"#eff6ff",border:"1px solid #93c5fd",
+          borderRadius:8,fontSize:12,marginBottom:14,color:"#1e40af"}}>
+          💡 El archivo se descargará en formato CSV (compatible con Excel y Google Sheets).
+        </div>
+
+        <div className="form-actions">
+          <button className="btn" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" onClick={handleDescargar}>
+            📥 Descargar CSV
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── MINI CALENDARIO MENSUAL ── */
 function CalendarioMes({ año, mes, registros }) {
@@ -68,7 +273,6 @@ function CalendarioMes({ año, mes, registros }) {
           );
         })}
       </div>
-      {/* Leyenda */}
       <div style={{display:"flex",gap:10,marginTop:8,flexWrap:"wrap"}}>
         {Object.entries(ESTADO_LABEL).map(([k,v])=>(
           <div key={k} style={{display:"flex",alignItems:"center",gap:4,fontSize:11}}>
@@ -86,8 +290,7 @@ function CalendarioMes({ año, mes, registros }) {
 }
 
 /* ── MODAL HISTORIAL ── */
-function ModalHistorial({ alumno, onClose }) {
-  const db = useAppDB();
+function ModalHistorial({ alumno, grupo, db, onClose }) {
   const hoy    = new Date();
   const [año,  setAño]  = useState(hoy.getFullYear());
   const [mes,  setMes]  = useState(hoy.getMonth());
@@ -109,6 +312,14 @@ function ModalHistorial({ alumno, onClose }) {
 
   const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
+  const hoyStr  = hoy.toISOString().slice(0,10);
+  const inicioC = CICLO_INICIO.toISOString().slice(0,10);
+
+  const handleDescargar = () => {
+    descargarAsistenciaAlumno(alumno, grupo, db.asistencia, inicioC, hoyStr);
+    toast.success(`Descargando asistencia de ${alumno.nombre}…`);
+  };
+
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal modal-lg">
@@ -117,16 +328,18 @@ function ModalHistorial({ alumno, onClose }) {
           <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
         </div>
 
-        {/* Alumno info */}
         <div style={{display:"flex",alignItems:"center",gap:12,padding:12,background:"var(--bg-base)",borderRadius:10,marginBottom:16}}>
           <div className="av">{INITIALS(alumno.nombre)}</div>
-          <div>
+          <div style={{flex:1}}>
             <div style={{fontWeight:700}}>{alumno.nombre}</div>
             <div className="small muted">Grupo {alumno.grupo}</div>
           </div>
+          {/* Botón de descarga individual desde el historial */}
+          <button className="btn btn-sm btn-primary" onClick={handleDescargar}>
+            📥 Descargar CSV
+          </button>
         </div>
 
-        {/* Resumen */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
           {[
             {lbl:"Presentes",    val:presentes,    color:"#16a34a",bg:"#dcfce7"},
@@ -141,7 +354,6 @@ function ModalHistorial({ alumno, onClose }) {
           ))}
         </div>
 
-        {/* Progreso ciclo escolar */}
         <div style={{background:"var(--bg-base)",border:"1px solid var(--border)",borderRadius:10,padding:"10px 14px",marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
             <span style={{fontWeight:600}}>Ciclo 2026-2027 (SEP)</span>
@@ -157,7 +369,6 @@ function ModalHistorial({ alumno, onClose }) {
           </div>
         </div>
 
-        {/* Navegación meses */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <button className="btn btn-sm" onClick={prevMes}>‹ Anterior</button>
           <strong>{MESES[mes]} {año}</strong>
@@ -180,10 +391,10 @@ function Asistencia() {
   const auth = useAuth();
 
   const today     = new Date().toISOString().slice(0,10);
-  const [fecha,   setFecha]      = useState(today);
+  const [fecha,   setFecha]       = useState(today);
   const [histAlumno, setHistAlumno] = useState(null);
+  const [modalDescarga, setModalDescarga] = useState(false);
 
-  // Si es maestro, forzar su grupo; si es admin puede elegir
   const gruposMaestro = auth?.rol === "maestro"
     ? db.grupos.filter(g => g.id === auth.grupo)
     : db.grupos;
@@ -203,7 +414,7 @@ function Asistencia() {
   },[db.asistencia, fecha]);
 
   const toggleEstado = useCallback((alumnoId)=>{
-    const actual  = getEstado(alumnoId);
+    const actual   = getEstado(alumnoId);
     const siguiente = ESTADOS[(ESTADOS.indexOf(actual)+1)%ESTADOS.length];
     const maestroId = db.grupos.find(g=>g.id===grupoId)?.maestroId || "";
     db.guardarAsistencia(alumnoId, fecha, siguiente, maestroId);
@@ -219,17 +430,15 @@ function Asistencia() {
     toast.success(`Todos marcados como ${ESTADO_LABEL[estado].toLowerCase()}`);
   };
 
-  // Stats del día
   const asistHoy   = db.asistencia.filter(a=>a.fecha===fecha&&alumnosGrupo.some(al=>al.id===a.alumnoId));
   const presentes  = asistHoy.filter(a=>a.estado==="presente").length;
   const ausentes   = asistHoy.filter(a=>a.estado==="ausente").length;
   const justificados = asistHoy.filter(a=>a.estado==="justificado").length;
   const pctHoy     = alumnosGrupo.length ? Math.round((presentes/alumnosGrupo.length)*100) : 0;
 
-  // Progreso ciclo
   const pctCiclo = Math.round(diasTranscurridos()/DIAS_HABILES_CICLO*100);
 
-  const grupo = db.grupos.find(g=>g.id===grupoId);
+  const grupo   = db.grupos.find(g=>g.id===grupoId);
   const maestro = grupo ? db.maestros.find(m=>m.id===grupo.maestroId) : null;
 
   return (
@@ -238,7 +447,6 @@ function Asistencia() {
         <div className="card-header">
           <div className="card-title">📋 Pase de Lista</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-            {/* Grupo — solo admin puede cambiar */}
             {auth?.rol !== "maestro" && (
               <select className="form-control" style={{width:140}} value={grupoId}
                 onChange={e=>setGrupoId(e.target.value)}>
@@ -253,10 +461,14 @@ function Asistencia() {
             <input type="date" className="form-control" style={{width:160}}
               value={fecha} onChange={e=>setFecha(e.target.value)}
               max={today}/>
+            {/* Botón descarga asistencia */}
+            <button className="btn btn-sm btn-primary" onClick={()=>setModalDescarga(true)}
+              title="Descargar reporte de asistencia">
+              📥 Descargar
+            </button>
           </div>
         </div>
 
-        {/* Info grupo */}
         {maestro && (
           <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14,padding:"8px 12px",
             background:"var(--bg-base)",borderRadius:8,fontSize:13}}>
@@ -269,7 +481,6 @@ function Asistencia() {
           </div>
         )}
 
-        {/* Contadores */}
         <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
           {[
             {lbl:"PRESENTES",    val:presentes,     color:"#16a34a",bg:"#f0fdf4",border:"#86efac"},
@@ -285,7 +496,6 @@ function Asistencia() {
           ))}
         </div>
 
-        {/* Progreso ciclo escolar */}
         <div style={{background:"var(--bg-base)",border:"1px solid var(--border)",
           borderRadius:10,padding:"10px 14px",marginBottom:14}}>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
@@ -303,7 +513,6 @@ function Asistencia() {
           </div>
         </div>
 
-        {/* Acciones rápidas */}
         <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
           <button className="btn btn-sm btn-success" onClick={()=>marcarTodos("presente")}>✅ Todos presentes</button>
           <button className="btn btn-sm btn-danger"  onClick={()=>marcarTodos("ausente")}>❌ Todos ausentes</button>
@@ -311,7 +520,6 @@ function Asistencia() {
           <button className="btn btn-sm btn-primary" style={{marginLeft:"auto"}} onClick={guardarTodo}>💾 Confirmar pase de lista</button>
         </div>
 
-        {/* Grid de alumnos */}
         {alumnosGrupo.length===0
           ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-title">No hay alumnos en este grupo</div></div>
           : (
@@ -349,8 +557,24 @@ function Asistencia() {
         }
       </div>
 
+      {/* Modal historial individual */}
       {histAlumno && (
-        <ModalHistorial alumno={histAlumno} onClose={()=>setHistAlumno(null)}/>
+        <ModalHistorial
+          alumno={histAlumno}
+          grupo={grupo}
+          db={db}
+          onClose={()=>setHistAlumno(null)}
+        />
+      )}
+
+      {/* Modal descarga */}
+      {modalDescarga && (
+        <ModalDescarga
+          grupoId={grupoId}
+          alumnos={alumnosGrupo}
+          db={db}
+          onClose={()=>setModalDescarga(false)}
+        />
       )}
     </Layout>
   );

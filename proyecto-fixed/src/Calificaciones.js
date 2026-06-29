@@ -4,10 +4,11 @@ import { useAppDB, Layout } from "./App";
 
 const CICLO = "2026-2027";
 
+// Quitamos "Inglés" y "Conocimiento del Medio"
 const MATERIAS = [
-  "Matemáticas","Español","Conocimiento del Medio","Ciencias Naturales",
+  "Matemáticas","Español","Ciencias Naturales",
   "Historia","Geografía","Formación Cívica y Ética","Educación Artística",
-  "Educación Física","Inglés",
+  "Educación Física",
 ];
 
 /* ════════════════════════════════════════════════
@@ -19,6 +20,14 @@ const color = (n) =>
 const promCalif = (c) =>
   +((Number(c.tri1) + Number(c.tri2) + Number(c.tri3)) / 3).toFixed(1);
 
+// Retorna qué trimestres tiene calificados una calificación
+const tieneTri = (c, t) => {
+  if (t === "t1") return c.tri1 !== "" && c.tri1 !== null && c.tri1 !== undefined;
+  if (t === "t2") return c.tri2 !== "" && c.tri2 !== null && c.tri2 !== undefined;
+  if (t === "t3") return c.tri3 !== "" && c.tri3 !== null && c.tri3 !== undefined;
+  return false;
+};
+
 /* ════════════════════════════════════════════════
    DESCARGA DE BOLETA PDF (ventana emergente)
 ════════════════════════════════════════════════ */
@@ -26,10 +35,8 @@ function generarBoletaPDF(alumno, db, trimestreFiltro) {
   const grupo   = db.grupos.find(g => g.id === alumno.grupo);
   const maestro = db.maestros.find(m => m.id === grupo?.maestroId);
   const todas   = db.calificaciones.filter(c => c.alumnoId === alumno.id && c.ciclo === CICLO);
-  const califs  = trimestreFiltro === "todos"
-    ? todas
-    : todas; // mostramos todas, pero resaltamos el trimestre
 
+  // Para "faltantes" en boleta usamos MATERIAS (sin Inglés ni Conocimiento del Medio)
   const materiasFaltantes = MATERIAS.filter(m => !todas.find(c => c.materia === m));
   const promGeneral = todas.length
     ? (todas.map(promCalif).reduce((a,b)=>a+b,0)/todas.length).toFixed(2)
@@ -80,41 +87,29 @@ function generarBoletaPDF(alumno, db, trimestreFiltro) {
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#2d2d2d;background:#fff;padding:28px;font-size:13px}
-
-  /* ENCABEZADO */
   .header{display:flex;align-items:center;gap:18px;border-bottom:3px solid #4a6fa5;padding-bottom:14px;margin-bottom:18px}
   .escudo{width:58px;height:58px;background:#4a6fa5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;flex-shrink:0}
   .escuela-info h1{font-size:17px;font-weight:800;color:#4a6fa5}
   .escuela-info p{font-size:11px;color:#5a5a5a;margin-top:2px}
   .periodo-badge{margin-left:auto;background:#4a6fa5;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
-
-  /* DATOS */
   h2{font-size:13px;font-weight:700;color:#4a6fa5;margin:14px 0 6px;border-left:4px solid #4a6fa5;padding-left:8px;text-transform:uppercase;letter-spacing:.5px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
   .field{padding:6px 10px;background:#f5f0e8;border-radius:6px}
   .field label{font-size:10px;font-weight:700;color:#5a5a5a;text-transform:uppercase;letter-spacing:.5px}
   .field span{display:block;font-weight:600;font-size:13px;margin-top:2px}
-
-  /* TABLA */
   table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:12px}
   th{background:#2c3a4a;color:#e8edf2;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.3px}
   th:not(:first-child){text-align:center}
   td{padding:7px 10px;border-bottom:1px solid #e0dbd0}
   tr:nth-child(even) td{background:#faf8f4}
-
-  /* RESUMEN */
   .resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
   .res-card{padding:10px;border-radius:8px;text-align:center;background:#f5f0e8;border:1px solid #d8d2c6}
   .res-card .val{font-size:22px;font-weight:800}
   .res-card .lbl{font-size:10px;color:#5a5a5a;margin-top:2px}
-
-  /* ALERTAS */
   .alert{padding:10px 14px;border-radius:8px;background:#fef3c7;border:1px solid #d8c080;margin-bottom:12px}
   .alert.ok{background:#dcfce7;border-color:#86efac}
   .alert-title{font-weight:700;font-size:13px}
   .chip{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;background:#ffe4b5;color:#8a5a10;margin:2px}
-
-  /* FIRMA */
   .firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px}
   .firma-box{text-align:center;border-top:1px solid #2d2d2d;padding-top:6px;font-size:11px;color:#5a5a5a}
   .footer{margin-top:18px;text-align:center;font-size:11px;color:#8a8a8a;border-top:1px solid #d8d2c6;padding-top:8px}
@@ -191,32 +186,59 @@ ${todas.length === 0
 
 /* ════════════════════════════════════════════════
    MODAL REGISTRAR / EDITAR UNA MATERIA
+   Ahora por trimestre: solo pide los campos del trimestre activo.
+   T1 → solo tri1
+   T2 → tri1 (solo lectura si ya existe) + tri2
+   T3 → tri1+tri2 (solo lectura) + tri3
 ════════════════════════════════════════════════ */
-function ModalCalificacion({ alumno, califExistente, materiasDisponibles, onClose, onSave }) {
+function ModalCalificacion({ alumno, califExistente, materiasDisponibles, trimestre, onClose, onSave }) {
   const esEdicion = !!califExistente;
+
   const [materia, setMateria] = useState(califExistente?.materia || materiasDisponibles[0] || "");
+  // Valores existentes (para mostrar en solo lectura si ya hay datos)
   const [tri1, setTri1] = useState(califExistente?.tri1 ?? "");
   const [tri2, setTri2] = useState(califExistente?.tri2 ?? "");
   const [tri3, setTri3] = useState(califExistente?.tri3 ?? "");
 
-  const prom = tri1 !== "" && tri2 !== "" && tri3 !== ""
-    ? ((Number(tri1)+Number(tri2)+Number(tri3))/3).toFixed(1)
-    : "—";
+  // Promedio parcial según trimestre activo
+  const calcProm = () => {
+    if (trimestre === "t1" && tri1 !== "") return Number(tri1).toFixed(1);
+    if (trimestre === "t2" && tri1 !== "" && tri2 !== "")
+      return ((Number(tri1)+Number(tri2))/2).toFixed(1);
+    if (trimestre === "t3" && tri1 !== "" && tri2 !== "" && tri3 !== "")
+      return ((Number(tri1)+Number(tri2)+Number(tri3))/3).toFixed(1);
+    return "—";
+  };
+  const prom = calcProm();
   const colorProm = prom !== "—" ? color(Number(prom)) : "inherit";
 
   const handleSubmit = () => {
     if (!materia) { toast.error("Selecciona una materia"); return; }
-    const n1=Number(tri1), n2=Number(tri2), n3=Number(tri3);
-    if ([tri1,tri2,tri3].some(v=>v==="")) { toast.error("Ingresa los tres trimestres"); return; }
-    if ([n1,n2,n3].some(n=>isNaN(n)||n<0||n>10)) { toast.error("Calificaciones entre 0 y 10"); return; }
-    onSave({ alumnoId:alumno.id, materia, tri1:n1, tri2:n2, tri3:n3, ciclo:CICLO });
+
+    // Validar solo el campo del trimestre activo (los anteriores ya están guardados)
+    if (trimestre === "t1") {
+      if (tri1 === "") { toast.error("Ingresa la calificación del 1er trimestre"); return; }
+      if (isNaN(Number(tri1)) || Number(tri1)<0 || Number(tri1)>10) { toast.error("Calificación entre 0 y 10"); return; }
+      // Para t1, tri2 y tri3 los guardamos como 0 temporalmente (se llenarán después)
+      onSave({ alumnoId:alumno.id, materia, tri1:Number(tri1), tri2: califExistente?.tri2 ?? 0, tri3: califExistente?.tri3 ?? 0, ciclo:CICLO, _trimestreRegistrado:"t1" });
+    } else if (trimestre === "t2") {
+      if (tri2 === "") { toast.error("Ingresa la calificación del 2do trimestre"); return; }
+      if (isNaN(Number(tri2)) || Number(tri2)<0 || Number(tri2)>10) { toast.error("Calificación entre 0 y 10"); return; }
+      onSave({ alumnoId:alumno.id, materia, tri1: Number(tri1), tri2:Number(tri2), tri3: califExistente?.tri3 ?? 0, ciclo:CICLO, _trimestreRegistrado:"t2" });
+    } else if (trimestre === "t3") {
+      if (tri3 === "") { toast.error("Ingresa la calificación del 3er trimestre"); return; }
+      if (isNaN(Number(tri3)) || Number(tri3)<0 || Number(tri3)>10) { toast.error("Calificación entre 0 y 10"); return; }
+      onSave({ alumnoId:alumno.id, materia, tri1: Number(tri1), tri2:Number(tri2), tri3:Number(tri3), ciclo:CICLO, _trimestreRegistrado:"t3" });
+    }
   };
+
+  const triLabel = { t1:"1er Trimestre", t2:"2do Trimestre", t3:"3er Trimestre" };
 
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <div className="modal-title">{esEdicion ? "✏️ Editar calificación" : "📝 Nueva calificación"}</div>
+          <div className="modal-title">{esEdicion ? "✏️ Editar calificación" : "📝 Nueva calificación"} — {triLabel[trimestre]}</div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
         </div>
 
@@ -231,7 +253,7 @@ function ModalCalificacion({ alumno, califExistente, materiasDisponibles, onClos
 
         <div className="form-group" style={{marginBottom:14}}>
           <label className="form-label">Materia</label>
-          {esEdicion
+          {esEdicion || materiasDisponibles.length <= 1
             ? <div style={{padding:"9px 12px",background:"var(--bg-base)",border:"1px solid var(--border)",
                 borderRadius:8,fontWeight:700,fontSize:14}}>{materia}</div>
             : <select className="form-control" value={materia} onChange={e=>setMateria(e.target.value)}>
@@ -244,17 +266,41 @@ function ModalCalificacion({ alumno, califExistente, materiasDisponibles, onClos
         </div>
 
         <div className="form-grid">
-          {[["tri1","1er Trimestre",tri1,setTri1],
-            ["tri2","2do Trimestre",tri2,setTri2],
-            ["tri3","3er Trimestre",tri3,setTri3]].map(([k,lbl,val,set])=>(
-            <div className="form-group" key={k}>
-              <label className="form-label">{lbl}</label>
-              <input type="number" className="form-control" min="0" max="10" step="0.1"
-                placeholder="0 – 10" value={val} onChange={e=>set(e.target.value)}/>
-            </div>
-          ))}
+          {/* 1er trimestre */}
           <div className="form-group">
-            <label className="form-label">Promedio</label>
+            <label className="form-label">1er Trimestre</label>
+            {trimestre === "t1"
+              ? <input type="number" className="form-control" min="0" max="10" step="0.1"
+                  placeholder="0 – 10" value={tri1} onChange={e=>setTri1(e.target.value)}/>
+              : <input className="form-control" readOnly value={tri1 !== "" ? Number(tri1).toFixed(1) : "—"}
+                  style={{background:"var(--bg-base)",color:tri1!==""?color(Number(tri1)):"var(--text-muted)",fontWeight:700,textAlign:"center"}}/>
+            }
+          </div>
+
+          {/* 2do trimestre — visible solo desde T2 */}
+          {(trimestre === "t2" || trimestre === "t3") && (
+            <div className="form-group">
+              <label className="form-label">2do Trimestre</label>
+              {trimestre === "t2"
+                ? <input type="number" className="form-control" min="0" max="10" step="0.1"
+                    placeholder="0 – 10" value={tri2} onChange={e=>setTri2(e.target.value)}/>
+                : <input className="form-control" readOnly value={tri2 !== "" ? Number(tri2).toFixed(1) : "—"}
+                    style={{background:"var(--bg-base)",color:tri2!==""?color(Number(tri2)):"var(--text-muted)",fontWeight:700,textAlign:"center"}}/>
+              }
+            </div>
+          )}
+
+          {/* 3er trimestre — visible solo en T3 */}
+          {trimestre === "t3" && (
+            <div className="form-group">
+              <label className="form-label">3er Trimestre</label>
+              <input type="number" className="form-control" min="0" max="10" step="0.1"
+                placeholder="0 – 10" value={tri3} onChange={e=>setTri3(e.target.value)}/>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label className="form-label">Promedio parcial</label>
             <input className="form-control" readOnly value={prom}
               style={{background:"var(--bg-base)",fontWeight:800,fontSize:18,
                 color:colorProm,textAlign:"center"}}/>
@@ -275,22 +321,35 @@ function ModalCalificacion({ alumno, califExistente, materiasDisponibles, onClos
 /* ════════════════════════════════════════════════
    MODAL DETALLE ALUMNO — tabla por materia + descarga
 ════════════════════════════════════════════════ */
-function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
+function ModalDetalle({ alumno, califs, trimestre, onClose, onNueva, onEditar }) {
   const db = useAppDB();
-  const [trimestre, setTrimestre] = useState("todos");
+  const [trimDescarga, setTrimDescarga] = useState("todos");
 
   const registradas  = new Set(califs.map(c=>c.materia));
   const pendientes   = MATERIAS.filter(m=>!registradas.has(m));
-  const pct          = Math.round((califs.length/MATERIAS.length)*100);
-  const promGeneral  = califs.length
+
+  // Materias que faltan en el trimestre actual (pueden estar registradas pero sin ese tri)
+  const faltantesEnTrimestre = MATERIAS.filter(m => {
+    const c = califs.find(cx => cx.materia === m);
+    if (!c) return true; // no registrada en absoluto
+    // Verificar si tiene el trimestre actual
+    if (trimestre === "t1" && (c.tri1 === "" || c.tri1 === null || c.tri1 === undefined)) return true;
+    if (trimestre === "t2" && (c.tri2 === "" || c.tri2 === null || c.tri2 === undefined || c.tri2 === 0)) return true;
+    if (trimestre === "t3" && (c.tri3 === "" || c.tri3 === null || c.tri3 === undefined || c.tri3 === 0)) return true;
+    return false;
+  });
+
+  const pct = Math.round((califs.length/MATERIAS.length)*100);
+  const promGeneral = califs.length
     ? (califs.map(promCalif).reduce((a,b)=>a+b,0)/califs.length).toFixed(1)
     : null;
 
-  // Ordenar: primero las pendientes (sin calificación), abajo las ya registradas
   const materiasOrdenadas = [
     ...pendientes.map(m=>({ materia:m, calif:null })),
     ...MATERIAS.filter(m=>registradas.has(m)).map(m=>({ materia:m, calif:califs.find(c=>c.materia===m) })),
   ];
+
+  const triLabel = { t1:"1er Trimestre", t2:"2do Trimestre", t3:"3er Trimestre", todos:"Todos" };
 
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -300,7 +359,6 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
           <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
         </div>
 
-        {/* Header alumno */}
         <div style={{display:"flex",alignItems:"center",gap:14,padding:"12px 16px",
           background:"var(--bg-base)",borderRadius:12,marginBottom:16}}>
           <div className="av av-lg">
@@ -329,25 +387,27 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
             <div style={{width:`${pct}%`,background:pct===100?"#3a7a5a":"var(--accent)",
               height:"100%",borderRadius:999,transition:"width .4s"}}/>
           </div>
-          {pendientes.length > 0
+          {faltantesEnTrimestre.length > 0
             ? <div style={{marginTop:6,fontSize:12,color:"#8a6a20",fontWeight:600}}>
-                ⚠️ Pendientes: {pendientes.join(", ")}
+                ⚠️ Pendientes en {triLabel[trimestre]}: {faltantesEnTrimestre.join(", ")}
               </div>
             : <div style={{marginTop:6,fontSize:12,color:"#2d6a3a",fontWeight:600}}>
-                ✅ Todas las materias están calificadas
+                ✅ Todas las materias están calificadas en {triLabel[trimestre]}
               </div>
           }
         </div>
 
-        {/* Tabla ordenada: pendientes arriba, registradas abajo */}
+        {/* Tabla */}
         <div className="table-wrap" style={{marginBottom:14}}>
           <table>
             <thead>
               <tr>
                 <th>Materia</th>
                 <th style={{textAlign:"center"}}>1er Trim.</th>
-                <th style={{textAlign:"center"}}>2do Trim.</th>
-                <th style={{textAlign:"center"}}>3er Trim.</th>
+                {(trimestre === "t2" || trimestre === "t3" || trimestre === "todos") &&
+                  <th style={{textAlign:"center"}}>2do Trim.</th>}
+                {(trimestre === "t3" || trimestre === "todos") &&
+                  <th style={{textAlign:"center"}}>3er Trim.</th>}
                 <th style={{textAlign:"center"}}>Promedio</th>
                 <th style={{textAlign:"center"}}>Acción</th>
               </tr>
@@ -355,7 +415,6 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
             <tbody>
               {materiasOrdenadas.map(({materia:m, calif:c})=>{
                 if (!c) {
-                  // Materia pendiente — resaltada
                   return (
                     <tr key={m} style={{background:"#fffbeb"}}>
                       <td>
@@ -366,8 +425,10 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
                         </div>
                       </td>
                       <td style={{textAlign:"center",color:"var(--text-muted)"}}>—</td>
-                      <td style={{textAlign:"center",color:"var(--text-muted)"}}>—</td>
-                      <td style={{textAlign:"center",color:"var(--text-muted)"}}>—</td>
+                      {(trimestre === "t2" || trimestre === "t3" || trimestre === "todos") &&
+                        <td style={{textAlign:"center",color:"var(--text-muted)"}}>—</td>}
+                      {(trimestre === "t3" || trimestre === "todos") &&
+                        <td style={{textAlign:"center",color:"var(--text-muted)"}}>—</td>}
                       <td style={{textAlign:"center",color:"var(--text-muted)"}}>—</td>
                       <td style={{textAlign:"center"}}>
                         <button className="btn btn-sm btn-primary"
@@ -378,7 +439,6 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
                     </tr>
                   );
                 }
-                // Materia ya registrada
                 const p = promCalif(c);
                 return (
                   <tr key={m}>
@@ -389,8 +449,10 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
                       </div>
                     </td>
                     <td style={{textAlign:"center"}}>{Number(c.tri1).toFixed(1)}</td>
-                    <td style={{textAlign:"center"}}>{Number(c.tri2).toFixed(1)}</td>
-                    <td style={{textAlign:"center"}}>{Number(c.tri3).toFixed(1)}</td>
+                    {(trimestre === "t2" || trimestre === "t3" || trimestre === "todos") &&
+                      <td style={{textAlign:"center"}}>{Number(c.tri2).toFixed(1)}</td>}
+                    {(trimestre === "t3" || trimestre === "todos") &&
+                      <td style={{textAlign:"center"}}>{Number(c.tri3).toFixed(1)}</td>}
                     <td style={{textAlign:"center"}}>
                       <strong style={{color:color(p),fontSize:15}}>{p}</strong>
                     </td>
@@ -405,7 +467,7 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
           </table>
         </div>
 
-        {/* Selector trimestre + botones descarga */}
+        {/* Descarga boleta */}
         <div style={{background:"var(--bg-base)",border:"1px solid var(--border)",
           borderRadius:10,padding:"12px 14px"}}>
           <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>📄 Descargar Boleta</div>
@@ -418,32 +480,27 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
               {v:"todos",lbl:"Completa"},
             ].map(({v,lbl})=>(
               <button key={v}
-                className={`btn btn-sm ${trimestre===v?"btn-primary":""}`}
-                onClick={()=>setTrimestre(v)}>
+                className={`btn btn-sm ${trimDescarga===v?"btn-primary":""}`}
+                onClick={()=>setTrimDescarga(v)}>
                 {lbl}
               </button>
             ))}
             <button className="btn btn-primary" style={{marginLeft:"auto"}}
               onClick={()=>{
-                generarBoletaPDF(alumno, db, trimestre);
+                generarBoletaPDF(alumno, db, trimDescarga);
                 toast.success("Abriendo boleta para imprimir / guardar como PDF…");
               }}>
               📄 Descargar PDF
             </button>
           </div>
-          {pendientes.length > 0 && (
-            <div className="small muted" style={{marginTop:8}}>
-              💡 La boleta indicará las {pendientes.length} materia(s) aún pendientes.
-            </div>
-          )}
         </div>
 
         <div className="form-actions">
           <button className="btn" onClick={onClose}>Cerrar</button>
-          {pendientes.length > 0 && (
+          {faltantesEnTrimestre.length > 0 && (
             <button className="btn btn-primary"
-              onClick={()=>{onClose();onNueva(alumno,pendientes);}}>
-              ➕ Agregar materia pendiente
+              onClick={()=>{onClose();onNueva(alumno,faltantesEnTrimestre);}}>
+              ➕ Agregar pendiente del {triLabel[trimestre]}
             </button>
           )}
         </div>
@@ -457,10 +514,10 @@ function ModalDetalle({ alumno, califs, onClose, onNueva, onEditar }) {
 ════════════════════════════════════════════════ */
 function Calificaciones() {
   const db = useAppDB();
-  const [grupoId,  setGrupoId]  = useState(db.grupos?.[0]?.id ?? "");
-  const [busqueda, setBusqueda] = useState("");
-  const [modal,    setModal]    = useState(null);
-  // modal: { tipo:"detalle"|"nueva"|"editar", alumno, materiasDisponibles?, califExistente? }
+  const [grupoId,   setGrupoId]   = useState(db.grupos?.[0]?.id ?? "");
+  const [busqueda,  setBusqueda]  = useState("");
+  const [trimestre, setTrimestre] = useState("t1"); // <-- selector de trimestre activo
+  const [modal,     setModal]     = useState(null);
 
   const alumnos = db.alumnos.filter(
     a => a.grupo===grupoId && a.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -475,9 +532,17 @@ function Calificaciones() {
   const califsDeAlumno = (alumnoId) =>
     db.calificaciones.filter(c=>c.alumnoId===alumnoId && c.ciclo===CICLO);
 
-  const pendientesDeAlumno = (alumnoId) => {
-    const reg = new Set(califsDeAlumno(alumnoId).map(c=>c.materia));
-    return MATERIAS.filter(m=>!reg.has(m));
+  // Materias que faltan registrar en el trimestre activo
+  const pendientesEnTrimestre = (alumnoId) => {
+    const califs = califsDeAlumno(alumnoId);
+    return MATERIAS.filter(m => {
+      const c = califs.find(cx => cx.materia === m);
+      if (!c) return true; // nunca registrada
+      if (trimestre === "t1" && (c.tri1 === "" || c.tri1 === null || c.tri1 === undefined)) return true;
+      if (trimestre === "t2" && (c.tri2 === "" || c.tri2 === null || c.tri2 === undefined || c.tri2 === 0)) return true;
+      if (trimestre === "t3" && (c.tri3 === "" || c.tri3 === null || c.tri3 === undefined || c.tri3 === 0)) return true;
+      return false;
+    });
   };
 
   const abrirDetalle = (alumno) => setModal({ tipo:"detalle", alumno });
@@ -493,6 +558,8 @@ function Calificaciones() {
     ? (todosProms.reduce((a,b)=>a+b,0)/todosProms.length).toFixed(1) : "—";
   const aprobados   = db.alumnos.filter(a=>{const p=db.promedioAlumno(a.id);return p!==null&&p>=6;}).length;
   const reprobados  = db.alumnos.filter(a=>{const p=db.promedioAlumno(a.id);return p!==null&&p<6;}).length;
+
+  const triLabel = { t1:"1er Trimestre", t2:"2do Trimestre", t3:"3er Trimestre" };
 
   return (
     <Layout title="Calificaciones">
@@ -528,7 +595,18 @@ function Calificaciones() {
       <div className="card">
         <div className="card-header">
           <div className="card-title">📋 Calificaciones · Ciclo {CICLO}</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+            {/* Selector de trimestre activo */}
+            <div style={{display:"flex",gap:4,background:"var(--bg-base)",borderRadius:8,padding:4}}>
+              {["t1","t2","t3"].map(t=>(
+                <button key={t}
+                  className={`btn btn-sm ${trimestre===t?"btn-primary":""}`}
+                  onClick={()=>setTrimestre(t)}
+                  style={{fontSize:12}}>
+                  {triLabel[t]}
+                </button>
+              ))}
+            </div>
             <select className="form-control" style={{width:140}} value={grupoId}
               onChange={e=>setGrupoId(e.target.value)}>
               {db.grupos.map(g=><option key={g.id} value={g.id}>{g.nombre}</option>)}
@@ -536,6 +614,14 @@ function Calificaciones() {
             <input className="form-control" style={{width:200}} placeholder="🔍 Buscar alumno..."
               value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
           </div>
+        </div>
+
+        {/* Indicador del trimestre activo */}
+        <div style={{padding:"8px 16px",marginBottom:8,background:"#eff6ff",borderRadius:8,
+          border:"1px solid #93c5fd",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+          <span>📌</span>
+          <span>Mostrando materias pendientes del <strong>{triLabel[trimestre]}</strong>.
+            La columna "Pendientes" indica cuántas materias faltan en este trimestre.</span>
         </div>
 
         {alumnos.length===0
@@ -549,7 +635,8 @@ function Calificaciones() {
                 <thead>
                   <tr>
                     <th>Alumno</th>
-                    <th style={{textAlign:"center"}}>Materias</th>
+                    <th style={{textAlign:"center"}}>Materias totales</th>
+                    <th style={{textAlign:"center"}}>Pendientes en {triLabel[trimestre]}</th>
                     <th style={{minWidth:140}}>Progreso</th>
                     <th style={{textAlign:"center"}}>Promedio</th>
                     <th style={{textAlign:"center"}}>Estado</th>
@@ -558,12 +645,12 @@ function Calificaciones() {
                 </thead>
                 <tbody>
                   {alumnos.map(a=>{
-                    const califs   = califsDeAlumno(a.id);
-                    const pendientes = pendientesDeAlumno(a.id);
-                    const prom     = db.promedioAlumno(a.id);
-                    const pct      = Math.round((califs.length/MATERIAS.length)*100);
-                    const aprobado = prom!==null && prom>=6;
-                    const completo = pendientes.length === 0;
+                    const califs    = califsDeAlumno(a.id);
+                    const pendTri   = pendientesEnTrimestre(a.id);
+                    const prom      = db.promedioAlumno(a.id);
+                    const pct       = Math.round((califs.length/MATERIAS.length)*100);
+                    const aprobado  = prom!==null && prom>=6;
+                    const triListo  = pendTri.length === 0;
 
                     return (
                       <tr key={a.id}>
@@ -572,25 +659,26 @@ function Calificaciones() {
                           <div className="small muted">Grupo {a.grupo}</div>
                         </td>
 
-                        {/* Materias: número + indicador pendientes */}
                         <td style={{textAlign:"center"}}>
                           <div style={{fontWeight:700}}>{califs.length}<span className="muted">/{MATERIAS.length}</span></div>
-                          {!completo && (
-                            <div style={{fontSize:10,color:"#d97706",fontWeight:600}}>
-                              {pendientes.length} pendiente{pendientes.length>1?"s":""}
-                            </div>
-                          )}
                         </td>
 
-                        {/* Barra progreso */}
+                        {/* Pendientes en trimestre activo */}
+                        <td style={{textAlign:"center"}}>
+                          {triListo
+                            ? <span className="badge badge-success" style={{fontSize:11}}>✅ Listo</span>
+                            : <span style={{fontWeight:700,color:"#d97706"}}>{pendTri.length}</span>
+                          }
+                        </td>
+
                         <td>
                           <div style={{display:"flex",alignItems:"center",gap:6}}>
                             <div style={{flex:1,background:"var(--border)",borderRadius:999,height:7,overflow:"hidden"}}>
                               <div style={{width:`${pct}%`,
-                                background:completo?"#3a7a5a":"var(--accent)",
+                                background:pct===100?"#3a7a5a":"var(--accent)",
                                 height:"100%",borderRadius:999}}/>
                             </div>
-                            <span className="small" style={{minWidth:32,color:completo?"#3a7a5a":"var(--text-muted)"}}>
+                            <span className="small" style={{minWidth:32,color:pct===100?"#3a7a5a":"var(--text-muted)"}}>
                               {pct}%
                             </span>
                           </div>
@@ -614,14 +702,14 @@ function Calificaciones() {
                               title="Ver todas las materias y descargar boleta">
                               📋 Ver
                             </button>
-                            {completo
+                            {triListo
                               ? <span className="badge badge-success" style={{padding:"5px 8px",fontSize:11}}>
-                                  ✅ Completo
+                                  ✅ {triLabel[trimestre].split(" ")[0]}
                                 </span>
                               : <button className="btn btn-sm btn-primary"
-                                  onClick={()=>abrirNueva(a, pendientes)}
-                                  title={`${pendientes.length} materia(s) sin registrar`}>
-                                  ➕ {pendientes.length}
+                                  onClick={()=>abrirNueva(a, pendTri)}
+                                  title={`${pendTri.length} materia(s) sin registrar en ${triLabel[trimestre]}`}>
+                                  ➕ {pendTri.length}
                                 </button>
                             }
                           </div>
@@ -641,6 +729,7 @@ function Calificaciones() {
         <ModalDetalle
           alumno={modal.alumno}
           califs={califsDeAlumno(modal.alumno.id)}
+          trimestre={trimestre}
           onClose={()=>setModal(null)}
           onNueva={abrirNueva}
           onEditar={abrirEditar}
@@ -652,6 +741,7 @@ function Calificaciones() {
           alumno={modal.alumno}
           califExistente={modal.califExistente}
           materiasDisponibles={modal.materiasDisponibles}
+          trimestre={trimestre}
           onClose={()=>setModal(null)}
           onSave={handleSave}
         />
