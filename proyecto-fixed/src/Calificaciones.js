@@ -299,11 +299,6 @@ function generarBoletaGrupoPDF(grupo, maestro, alumnos, todasCalifs, trimestreFi
   win.document.write(html);
   win.document.close();
 }
-   Ahora por trimestre: solo pide los campos del trimestre activo.
-   T1 → solo tri1
-   T2 → tri1 (solo lectura si ya existe) + tri2
-   T3 → tri1+tri2 (solo lectura) + tri3
-════════════════════════════════════════════════ */
 function ModalCalificacion({ alumno, califExistente, materiasDisponibles, trimestre, onClose, onSave }) {
   const esEdicion = !!califExistente;
 
