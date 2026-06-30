@@ -623,6 +623,65 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
   /* ocultar columnas menos relevantes */
   table .hide-mobile { display: none; }
+
+  /* ════════════════════════════════════
+     Ajustes para componentes nuevos:
+     Calificaciones, Asistencia, modales
+     de descarga PDF, selector trimestre
+  ════════════════════════════════════ */
+
+  /* Header de Calificaciones: trimestre + grupo + busqueda + botón boleta */
+  .card-header > div[style*="flex"] {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .card-header select.form-control,
+  .card-header input.form-control {
+    width: 100% !important;
+  }
+
+  /* Selector de trimestres (t1/t2/t3) en fila propia, full width, scroll si hace falta */
+  .card-header > div > div[style*="background:var(--bg-base)"] {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .card-header > div > div[style*="background:var(--bg-base)"] button {
+    flex: 1;
+  }
+
+  /* Botones de acceso rápido / modo (Por Grupo · Por Alumno) ya usan flex:1, ok en móvil */
+
+  /* Grids inline de 4 columnas (stat-cards de boletas, accesos rápidos periodo) */
+  div[style*="grid-template-columns:repeat(4"],
+  div[style*="gridTemplateColumns:\"repeat(4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Inputs de fecha / periodo en formularios de descarga */
+  .modal .form-grid input[type="date"] { width: 100%; }
+
+  /* Botones de acción rápida de Asistencia (Todos presentes, etc.) — permitir scroll horizontal en vez de overflow roto */
+  div[style*="flex-wrap:wrap"] button.btn-sm { flex: 1 1 auto; min-width: 110px; }
+
+  /* Asegurar que los botones largos de texto no se corten */
+  .btn { white-space: normal; text-align: center; line-height: 1.3; }
+
+  /* Tablas con scroll horizontal suave + sombra de indicador */
+  .table-wrap {
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal de descarga / boleta: que los campos de fecha vayan en columna */
+  .modal .form-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── TABLET extra: ajustar headers con muchos controles ── */
+@media (min-width: 601px) and (max-width: 900px) {
+  .card-header > div[style*="flex"] { flex-wrap: wrap; }
+  .card-header select.form-control { width: 130px !important; }
+  .card-header input.form-control  { width: 160px !important; }
 }
 
 /* ── Móvil muy pequeño (≤ 380px) ── */

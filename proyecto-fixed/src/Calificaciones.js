@@ -185,7 +185,120 @@ ${todas.length === 0
 }
 
 /* ════════════════════════════════════════════════
-   MODAL REGISTRAR / EDITAR UNA MATERIA
+   DESCARGA DE BOLETA DE TODO EL GRUPO (PDF)
+════════════════════════════════════════════════ */
+function generarBoletaGrupoPDF(grupo, maestro, alumnos, todasCalifs, trimestreFiltro) {
+  const triLabel = { t1:"1er Trimestre", t2:"2do Trimestre", t3:"3er Trimestre" };
+  const fechaHoy = new Date().toLocaleDateString("es-MX", { year:"numeric", month:"long", day:"numeric" });
+
+  const filasAlumno = alumnos.map(al => {
+    const califs = todasCalifs.filter(c => c.alumnoId === al.id && c.ciclo === CICLO);
+    const completas = MATERIAS.filter(m => {
+      const c = califs.find(x=>x.materia===m);
+      return c && tieneTri(c, trimestreFiltro);
+    });
+    const pendientes = MATERIAS.filter(m => !completas.includes(m));
+    const proms = califs
+      .filter(c => tieneTri(c, trimestreFiltro))
+      .map(c => trimestreFiltro==="t1" ? Number(c.tri1) : trimestreFiltro==="t2" ? Number(c.tri2) : Number(c.tri3));
+    const promAlumno = proms.length ? (proms.reduce((a,b)=>a+b,0)/proms.length).toFixed(1) : null;
+    return { alumno: al, califs, completas, pendientes, promAlumno };
+  });
+
+  const promGrupo = filasAlumno.filter(f=>f.promAlumno!==null);
+  const promGeneralGrupo = promGrupo.length
+    ? (promGrupo.reduce((s,f)=>s+Number(f.promAlumno),0)/promGrupo.length).toFixed(1) : "—";
+  const completosCount = filasAlumno.filter(f=>f.pendientes.length===0).length;
+
+  const filaAlumnoHTML = ({alumno, completas, pendientes, promAlumno}) => `
+    <tr>
+      <td style="font-weight:600">${alumno.nombre}</td>
+      <td style="text-align:center">${completas.length}/${MATERIAS.length}</td>
+      <td style="text-align:center">
+        ${pendientes.length===0
+          ? `<span style="background:#dcfce7;color:#166534;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px">✓ Completo</span>`
+          : `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-weight:700;font-size:11px">${pendientes.length} pendiente${pendientes.length>1?"s":""}</span>`
+        }
+      </td>
+      <td style="text-align:center;font-size:10px;color:#8a6a20">${pendientes.join(", ")||"—"}</td>
+      <td style="text-align:center;font-weight:800;color:${promAlumno===null?"#8a8a8a":Number(promAlumno)>=8?"#166534":Number(promAlumno)>=6?"#92400e":"#991b1b"}">${promAlumno??"—"}</td>
+    </tr>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"/>
+<title>Calificaciones ${grupo?.nombre||""} — ${triLabel[trimestreFiltro]}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#2d2d2d;background:#fff;padding:28px;font-size:12px}
+  .header{display:flex;align-items:center;gap:16px;border-bottom:3px solid #4a6fa5;padding-bottom:14px;margin-bottom:18px}
+  .escudo{width:56px;height:56px;background:#4a6fa5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;flex-shrink:0}
+  .escuela-info h1{font-size:16px;font-weight:800;color:#4a6fa5}
+  .escuela-info p{font-size:11px;color:#5a5a5a;margin-top:2px}
+  .periodo-badge{margin-left:auto;background:#4a6fa5;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700}
+  h2{font-size:13px;font-weight:700;color:#4a6fa5;margin:16px 0 8px;border-left:4px solid #4a6fa5;padding-left:8px;text-transform:uppercase;letter-spacing:.5px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .field{padding:6px 10px;background:#f5f0e8;border-radius:6px}
+  .field label{font-size:9px;font-weight:700;color:#5a5a5a;text-transform:uppercase;letter-spacing:.5px}
+  .field span{display:block;font-weight:600;font-size:12px;margin-top:2px}
+  .resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  .res-card{padding:12px;border-radius:8px;text-align:center;background:#f5f0e8;border:1px solid #d8d2c6}
+  .res-card .val{font-size:24px;font-weight:800}
+  .res-card .lbl{font-size:10px;color:#5a5a5a;margin-top:2px}
+  table{width:100%;border-collapse:collapse;margin-bottom:18px}
+  th{background:#2c3a4a;color:#e8edf2;padding:8px 10px;text-align:left;font-size:11px;font-weight:700}
+  th:not(:first-child){text-align:center}
+  td{padding:7px 10px;border-bottom:1px solid #e0dbd0;font-size:11px}
+  tr:nth-child(even) td{background:#faf8f4}
+  .firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px}
+  .firma-box{text-align:center;border-top:1px solid #2d2d2d;padding-top:6px;font-size:10px;color:#5a5a5a}
+  .footer{margin-top:18px;text-align:center;font-size:10px;color:#8a8a8a;border-top:1px solid #d8d2c6;padding-top:8px}
+  @media print{body{padding:14px}button{display:none!important}}
+</style></head>
+<body>
+  <div class="header">
+    <div class="escudo">🏫</div>
+    <div class="escuela-info">
+      <h1>Escuela Primaria EduGestión</h1>
+      <p>Ciudad Juárez, Chihuahua · Turno Vespertino · Ciclo ${CICLO}</p>
+    </div>
+    <div class="periodo-badge">📊 ${triLabel[trimestreFiltro]}</div>
+  </div>
+
+  <div class="grid">
+    <div class="field"><label>Grupo</label><span>${grupo?.nombre||"—"}</span></div>
+    <div class="field"><label>Salón</label><span>${grupo?.salon||"—"}</span></div>
+    <div class="field"><label>Maestro titular</label><span>${maestro?.nombre||"—"}</span></div>
+    <div class="field"><label>Total alumnos</label><span>${alumnos.length}</span></div>
+  </div>
+
+  <h2>Resumen del Grupo</h2>
+  <div class="resumen">
+    <div class="res-card"><div class="val" style="color:${Number(promGeneralGrupo)>=8?"#166534":Number(promGeneralGrupo)>=6?"#92400e":"#991b1b"}">${promGeneralGrupo}</div><div class="lbl">Promedio del grupo</div></div>
+    <div class="res-card"><div class="val" style="color:#166534">${completosCount}</div><div class="lbl">Alumnos completos</div></div>
+    <div class="res-card"><div class="val" style="color:#92400e">${alumnos.length-completosCount}</div><div class="lbl">Con pendientes</div></div>
+    <div class="res-card"><div class="val">${MATERIAS.length}</div><div class="lbl">Materias evaluadas</div></div>
+  </div>
+
+  <h2>Concentrado de Calificaciones — ${triLabel[trimestreFiltro]}</h2>
+  <table>
+    <thead><tr><th>Alumno</th><th>Materias</th><th>Estado</th><th>Pendientes</th><th>Promedio</th></tr></thead>
+    <tbody>${filasAlumno.map(filaAlumnoHTML).join("")}</tbody>
+  </table>
+
+  <div class="firma">
+    <div class="firma-box">Firma del Maestro Titular<br/><strong style="display:block;margin-top:4px">${maestro?.nombre||"___________________"}</strong></div>
+    <div class="firma-box">Firma del Director(a)<br/><strong style="display:block;margin-top:4px">Ma. Norma Alvarez</strong></div>
+  </div>
+
+  <div class="footer">EduGestión · Sistema de Control Escolar · Ciudad Juárez, Chihuahua · Generado el ${fechaHoy}</div>
+  <script>window.onload = () => window.print();</script>
+</body></html>`;
+
+  const win = window.open("", "_blank", "width=1000,height=720");
+  win.document.write(html);
+  win.document.close();
+}
    Ahora por trimestre: solo pide los campos del trimestre activo.
    T1 → solo tri1
    T2 → tri1 (solo lectura si ya existe) + tri2
@@ -613,6 +726,16 @@ function Calificaciones() {
             </select>
             <input className="form-control" style={{width:200}} placeholder="🔍 Buscar alumno..."
               value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+            <button className="btn btn-sm btn-primary"
+              onClick={()=>{
+                const grupo = db.grupos.find(g=>g.id===grupoId);
+                const maestro = db.maestros.find(m=>m.id===grupo?.maestroId);
+                generarBoletaGrupoPDF(grupo, maestro, alumnos, db.calificaciones, trimestre);
+                toast.success(`Generando boleta del grupo ${grupo?.nombre}…`);
+              }}
+              title="Descargar boleta de calificaciones de todo el grupo">
+              📄 Boleta del grupo
+            </button>
           </div>
         </div>
 

@@ -23,132 +23,696 @@ function diasTranscurridos() {
 const padZ = n => String(n).padStart(2,"0");
 const fmt  = (y,m,d) => `${y}-${padZ(m+1)}-${padZ(d)}`;
 
-/* ── DESCARGA DE ASISTENCIA ── */
+const MESES_CORTO = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MESES_LARGO = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-// Genera y descarga un CSV con la asistencia
-function descargarCSV(filas, nombreArchivo) {
-  const contenido = filas.map(f => f.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF" + contenido], { type: "text/csv;charset=utf-8;" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  a.download = nombreArchivo;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/* ════════════════════════════════════════════════
+   GENERADOR PDF — REPORTE POR GRUPO
+   Tabla horizontal: alumnos en filas, días en columnas agrupadas por mes
+════════════════════════════════════════════════ */
+function generarPDFGrupo(grupo, maestro, alumnos, todasAsistencias, fechaInicio, fechaFin) {
+  const inicio = new Date(fechaInicio);
+  const fin    = new Date(fechaFin);
+  const fechaHoy = new Date().toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"});
 
-// Descarga asistencia de todo el grupo en el periodo seleccionado
-function descargarAsistenciaGrupo(grupo, maestro, alumnos, todasAsistencias, fechaInicio, fechaFin) {
-  // Obtener fechas únicas del rango
-  const fechas = [];
-  const d = new Date(fechaInicio);
-  const fin = new Date(fechaFin);
+  // Construir lista de fechas con registro (solo días que tienen al menos un registro)
+  const fechasConRegistro = new Set();
+  todasAsistencias.forEach(a => {
+    if (a.fecha >= fechaInicio && a.fecha <= fechaFin &&
+        alumnos.some(al=>al.id===a.alumnoId)) {
+      fechasConRegistro.add(a.fecha);
+    }
+  });
+  // También incluir todas las fechas del rango (para mostrar huecos)
+  const d = new Date(inicio);
   while (d <= fin) {
-    const ds = d.toISOString().slice(0,10);
-    fechas.push(ds);
+    fechasConRegistro.add(d.toISOString().slice(0,10));
     d.setDate(d.getDate()+1);
   }
+  const fechas = [...fechasConRegistro].sort();
 
-  const encabezado = ["Alumno", ...fechas, "Presentes", "Ausentes", "Justificados", "% Asistencia"];
-  const filas = [encabezado];
-
-  alumnos.forEach(al => {
-    const reg = {};
-    todasAsistencias.filter(a=>a.alumnoId===al.id).forEach(a=>{ reg[a.fecha]=a.estado; });
-
-    const row = [al.nombre];
-    let pres=0, aus=0, just=0, total=0;
-    fechas.forEach(f => {
-      const est = reg[f];
-      row.push(est ? ESTADO_LABEL[est] : "Sin registro");
-      if (est) {
-        total++;
-        if (est==="presente") pres++;
-        else if (est==="ausente") aus++;
-        else if (est==="justificado") just++;
-      }
-    });
-    const pct = total > 0 ? Math.round((pres/total)*100)+"%" : "—";
-    row.push(pres, aus, just, pct);
-    filas.push(row);
+  // Agrupar fechas por mes para los encabezados
+  const meses = [];
+  fechas.forEach(f => {
+    const [y,m] = f.split("-");
+    const key = `${y}-${m}`;
+    if (!meses.length || meses[meses.length-1].key !== key) {
+      meses.push({ key, label: `${MESES_CORTO[parseInt(m)-1]} ${y}`, count:1 });
+    } else {
+      meses[meses.length-1].count++;
+    }
   });
 
-  const fechaHoy = new Date().toISOString().slice(0,10);
-  descargarCSV(filas, `Asistencia_${grupo?.nombre||"Grupo"}_${fechaInicio}_${fechaFin}.csv`);
+  // Construir mapa de asistencia por alumno
+  const mapaAsist = {};
+  alumnos.forEach(al => {
+    mapaAsist[al.id] = {};
+    todasAsistencias.filter(a=>a.alumnoId===al.id).forEach(a=>{ mapaAsist[al.id][a.fecha]=a.estado; });
+  });
+
+  // Stats por alumno
+  const statsAlumno = (alumnoId) => {
+    let pres=0,aus=0,just=0,total=0;
+    fechas.forEach(f => {
+      const est = mapaAsist[alumnoId]?.[f];
+      if (est) {
+        total++;
+        if(est==="presente")pres++;
+        else if(est==="ausente")aus++;
+        else if(est==="justificado")just++;
+      }
+    });
+    return { pres, aus, just, total, pct: total>0?Math.round((pres/total)*100):null };
+  };
+
+  // Stats globales del grupo
+  let gpres=0,gaus=0,gjust=0,gtotal=0;
+  alumnos.forEach(al => {
+    const s = statsAlumno(al.id);
+    gpres+=s.pres; gaus+=s.aus; gjust+=s.just; gtotal+=s.total;
+  });
+  const gpct = gtotal>0?Math.round((gpres/gtotal)*100):null;
+
+  // Abreviar días: solo el número del día
+  const diaNum = (f) => parseInt(f.split("-")[2]);
+
+  // Colores de celda
+  const cellColor = (est) => {
+    if (est==="presente")   return { bg:"#dcfce7", color:"#15803d", text:"P" };
+    if (est==="ausente")    return { bg:"#fee2e2", color:"#b91c1c", text:"A" };
+    if (est==="justificado")return { bg:"#fef9c3", color:"#92400e", text:"J" };
+    return { bg:"#f9fafb", color:"#9ca3af", text:"·" };
+  };
+
+  // Generar filas de la tabla
+  const filasHTML = alumnos.map((al, idx) => {
+    const s = statsAlumno(al.id);
+    const pctColor = s.pct===null?"#6b7280":s.pct>=90?"#15803d":s.pct>=75?"#92400e":"#b91c1c";
+    const celdas = fechas.map(f => {
+      const est = mapaAsist[al.id]?.[f];
+      const c = cellColor(est);
+      return `<td style="background:${c.bg};color:${c.color};font-weight:700;text-align:center;font-size:9px;padding:3px 1px;">${c.text}</td>`;
+    }).join("");
+    const bg = idx%2===0?"#fff":"#f8fafc";
+    return `
+      <tr style="background:${bg}">
+        <td style="padding:4px 6px;font-weight:600;font-size:10px;white-space:nowrap;border-right:2px solid #e2e8f0;">${idx+1}. ${al.nombre}</td>
+        ${celdas}
+        <td style="text-align:center;font-weight:700;font-size:10px;color:#15803d;border-left:1px solid #e2e8f0;">${s.pres}</td>
+        <td style="text-align:center;font-weight:700;font-size:10px;color:#b91c1c;">${s.aus}</td>
+        <td style="text-align:center;font-weight:700;font-size:10px;color:#92400e;">${s.just}</td>
+        <td style="text-align:center;font-weight:800;font-size:11px;color:${pctColor};border-left:2px solid #e2e8f0;">${s.pct!==null?s.pct+"%":"—"}</td>
+      </tr>`;
+  }).join("");
+
+  // Encabezados de mes (colspan)
+  const thMeses = meses.map(m =>
+    `<th colspan="${m.count}" style="background:#1e3a5f;color:#fff;text-align:center;padding:5px 2px;font-size:10px;font-weight:700;border-right:1px solid #2d5a8e;">${m.label}</th>`
+  ).join("");
+
+  // Encabezados de día
+  const thDias = fechas.map(f => {
+    const dn = diaNum(f);
+    const dow = new Date(f).getDay(); // 0=dom,6=sab
+    const esFinSemana = dow===0||dow===6;
+    return `<th style="background:${esFinSemana?"#374151":"#2c4a6e"};color:${esFinSemana?"#9ca3af":"#e2e8f0"};text-align:center;padding:4px 1px;font-size:9px;min-width:18px;border-right:1px solid #3d6080;">${dn}</th>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Reporte de Asistencia — ${grupo?.nombre||"Grupo"}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#1e293b;background:#fff;padding:20px;font-size:11px}
+
+  .header{display:flex;align-items:center;gap:16px;border-bottom:4px solid #1e3a5f;padding-bottom:12px;margin-bottom:14px}
+  .escudo{width:52px;height:52px;background:linear-gradient(135deg,#1e3a5f,#2c6fad);border-radius:12px;
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;flex-shrink:0;box-shadow:0 2px 8px #1e3a5f44}
+  .escuela h1{font-size:16px;font-weight:800;color:#1e3a5f;line-height:1.2}
+  .escuela p{font-size:10px;color:#64748b;margin-top:2px}
+  .badges{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  .badge-pill{padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+
+  .info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .info-card{padding:8px 10px;border-radius:8px;border-left:3px solid}
+  .info-card .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.7}
+  .info-card .val{font-size:13px;font-weight:800;margin-top:2px}
+
+  .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  .stat{padding:8px;border-radius:8px;text-align:center;border:1px solid}
+  .stat .n{font-size:20px;font-weight:800}
+  .stat .l{font-size:9px;font-weight:700;margin-top:1px}
+
+  .tabla-wrap{overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 1px 6px #0001}
+  table{border-collapse:collapse;width:100%}
+  th{border:1px solid #2d5a8e}
+  td{border:1px solid #e2e8f0}
+
+  .leyenda{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  .leyenda-item{display:flex;align-items:center;gap:5px;font-size:10px}
+  .leyenda-box{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
+
+  .firma-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;margin-top:24px}
+  .firma{text-align:center}
+  .firma-line{border-top:1px solid #334155;padding-top:5px;font-size:10px;color:#475569;margin-top:30px}
+
+  .footer{margin-top:14px;text-align:center;font-size:9px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px}
+
+  @media print{
+    body{padding:10px}
+    button{display:none!important}
+    .tabla-wrap{overflow:visible}
+    @page{size:landscape;margin:1cm}
+  }
+</style>
+</head>
+<body>
+
+<!-- ENCABEZADO -->
+<div class="header">
+  <div class="escudo">🏫</div>
+  <div class="escuela">
+    <h1>Escuela Primaria EduGestión</h1>
+    <p>Ciudad Juárez, Chihuahua · Turno Vespertino · Ciclo 2026-2027</p>
+    <p>Reporte generado el ${fechaHoy}</p>
+  </div>
+  <div class="badges">
+    <div class="badge-pill" style="background:#1e3a5f;color:#fff">📋 Reporte de Asistencia por Grupo</div>
+    <div class="badge-pill" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd">
+      📅 ${new Date(fechaInicio).toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}
+      &nbsp;→&nbsp;
+      ${new Date(fechaFin).toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}
+    </div>
+  </div>
+</div>
+
+<!-- INFO DEL GRUPO -->
+<div class="info-grid">
+  <div class="info-card" style="background:#eff6ff;border-color:#3b82f6">
+    <div class="lbl" style="color:#1d4ed8">Grupo</div>
+    <div class="val" style="color:#1d4ed8">${grupo?.nombre||"—"}</div>
+  </div>
+  <div class="info-card" style="background:#f0fdf4;border-color:#22c55e">
+    <div class="lbl" style="color:#15803d">Maestro Titular</div>
+    <div class="val" style="color:#15803d;font-size:11px">${maestro?.nombre||"—"}</div>
+  </div>
+  <div class="info-card" style="background:#fdf4ff;border-color:#a855f7">
+    <div class="lbl" style="color:#7e22ce">Total Alumnos</div>
+    <div class="val" style="color:#7e22ce">${alumnos.length}</div>
+  </div>
+  <div class="info-card" style="background:#fff7ed;border-color:#f97316">
+    <div class="lbl" style="color:#c2410c">Días en el Periodo</div>
+    <div class="val" style="color:#c2410c">${fechas.length}</div>
+  </div>
+</div>
+
+<!-- ESTADÍSTICAS GLOBALES -->
+<div class="stat-row">
+  <div class="stat" style="background:#f0fdf4;border-color:#86efac">
+    <div class="n" style="color:#15803d">${gpres}</div>
+    <div class="l" style="color:#15803d">PRESENCIAS TOTALES</div>
+  </div>
+  <div class="stat" style="background:#fef2f2;border-color:#fca5a5">
+    <div class="n" style="color:#b91c1c">${gaus}</div>
+    <div class="l" style="color:#b91c1c">AUSENCIAS TOTALES</div>
+  </div>
+  <div class="stat" style="background:#fefce8;border-color:#fde047">
+    <div class="n" style="color:#92400e">${gjust}</div>
+    <div class="l" style="color:#92400e">JUSTIFICADAS</div>
+  </div>
+  <div class="stat" style="background:#eff6ff;border-color:#93c5fd">
+    <div class="n" style="color:#1d4ed8">${gtotal}</div>
+    <div class="l" style="color:#1d4ed8">REGISTROS TOTALES</div>
+  </div>
+  <div class="stat" style="background:${gpct>=90?"#f0fdf4":gpct>=75?"#fefce8":"#fef2f2"};border-color:${gpct>=90?"#86efac":gpct>=75?"#fde047":"#fca5a5"}">
+    <div class="n" style="color:${gpct>=90?"#15803d":gpct>=75?"#92400e":"#b91c1c"}">${gpct!==null?gpct+"%":"—"}</div>
+    <div class="l" style="color:${gpct>=90?"#15803d":gpct>=75?"#92400e":"#b91c1c"}">% ASISTENCIA GRUPO</div>
+  </div>
+</div>
+
+<!-- TABLA PRINCIPAL -->
+<div class="tabla-wrap">
+<table>
+  <thead>
+    <tr>
+      <th rowspan="2" style="background:#0f2744;color:#fff;padding:6px 8px;text-align:left;font-size:10px;min-width:160px;border-right:2px solid #2d5a8e;">ALUMNO</th>
+      ${thMeses}
+      <th colspan="3" style="background:#1e3a5f;color:#fff;text-align:center;padding:5px 2px;font-size:10px;font-weight:700;border-left:1px solid #2d5a8e;">RESUMEN</th>
+      <th rowspan="2" style="background:#0f2744;color:#e2e8f0;text-align:center;padding:5px 3px;font-size:10px;border-left:2px solid #2d5a8e;min-width:36px;">%</th>
+    </tr>
+    <tr>
+      ${thDias}
+      <th style="background:#166534;color:#dcfce7;text-align:center;padding:4px 3px;font-size:9px;border-left:1px solid #2d5a8e;min-width:24px;">P</th>
+      <th style="background:#991b1b;color:#fee2e2;text-align:center;padding:4px 3px;font-size:9px;min-width:24px;">A</th>
+      <th style="background:#78350f;color:#fef9c3;text-align:center;padding:4px 3px;font-size:9px;min-width:24px;">J</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${filasHTML}
+  </tbody>
+</table>
+</div>
+
+<!-- LEYENDA -->
+<div class="leyenda" style="margin-top:10px">
+  <span style="font-size:10px;font-weight:700;color:#475569">Leyenda:</span>
+  <div class="leyenda-item">
+    <div class="leyenda-box" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">P</div>
+    <span>Presente</span>
+  </div>
+  <div class="leyenda-item">
+    <div class="leyenda-box" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">A</div>
+    <span>Ausente</span>
+  </div>
+  <div class="leyenda-item">
+    <div class="leyenda-box" style="background:#fef9c3;color:#92400e;border:1px solid #fde047">J</div>
+    <span>Justificado</span>
+  </div>
+  <div class="leyenda-item">
+    <div class="leyenda-box" style="background:#f9fafb;color:#9ca3af;border:1px solid #e5e7eb">·</div>
+    <span>Sin registro</span>
+  </div>
+  <div class="leyenda-item" style="margin-left:10px">
+    <div style="width:16px;height:16px;background:#374151;border-radius:3px;border:1px solid #4b5563"></div>
+    <span style="color:#6b7280">Fin de semana</span>
+  </div>
+</div>
+
+<!-- FIRMAS -->
+<div class="firma-row">
+  <div class="firma">
+    <div class="firma-line">
+      <strong>${maestro?.nombre||"_______________________"}</strong><br>Maestro Titular
+    </div>
+  </div>
+  <div class="firma">
+    <div class="firma-line">
+      <strong>Ma. Norma Alvarez</strong><br>Director(a)
+    </div>
+  </div>
+  <div class="firma">
+    <div class="firma-line">
+      <strong>_______________________</strong><br>Sello de la Institución
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  EduGestión · Sistema de Control Escolar · Ciudad Juárez, Chihuahua · ${fechaHoy}<br>
+  Documento generado automáticamente — válido sin firma manuscrita cuando lleva sello institucional
+</div>
+
+<script>window.onload = () => window.print();</script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=1200,height=800");
+  win.document.write(html);
+  win.document.close();
 }
 
-// Descarga asistencia de un alumno individual
-function descargarAsistenciaAlumno(alumno, grupo, asistencias, fechaInicio, fechaFin) {
-  const d   = new Date(fechaInicio);
-  const fin = new Date(fechaFin);
+/* ════════════════════════════════════════════════
+   GENERADOR PDF — REPORTE INDIVIDUAL POR ALUMNO
+   Tabla vertical: fechas en filas, con calendario visual por mes
+════════════════════════════════════════════════ */
+function generarPDFAlumno(alumno, grupo, maestro, asistencias, fechaInicio, fechaFin) {
+  const fechaHoy = new Date().toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"});
+
   const reg = {};
   asistencias.filter(a=>a.alumnoId===alumno.id).forEach(a=>{ reg[a.fecha]=a.estado; });
 
-  const filasTitulo = [
-    ["Reporte de Asistencia Individual"],
-    ["Alumno:", alumno.nombre],
-    ["Grupo:", grupo?.nombre || "—"],
-    ["Periodo:", `${fechaInicio} al ${fechaFin}`],
-    [""],
-    ["Fecha", "Estado"],
-  ];
-
-  let pres=0, aus=0, just=0, total=0;
-  const filasData = [];
+  // Calcular stats
+  let pres=0,aus=0,just=0,total=0;
+  const d = new Date(fechaInicio);
+  const fin = new Date(fechaFin);
   const dc = new Date(d);
   while (dc <= fin) {
     const ds = dc.toISOString().slice(0,10);
     const est = reg[ds];
     if (est) {
       total++;
-      if (est==="presente") pres++;
-      else if (est==="ausente") aus++;
-      else if (est==="justificado") just++;
-      filasData.push([ds, ESTADO_LABEL[est]]);
+      if(est==="presente")pres++;
+      else if(est==="ausente")aus++;
+      else if(est==="justificado")just++;
     }
     dc.setDate(dc.getDate()+1);
   }
+  const pct = total>0?Math.round((pres/total)*100):null;
+  const pctColor = pct===null?"#6b7280":pct>=90?"#15803d":pct>=75?"#92400e":"#b91c1c";
 
-  const pct = total > 0 ? Math.round((pres/total)*100)+"%" : "—";
-  const resumen = [
-    [""],
-    ["Resumen"],
-    ["Total días registrados:", total],
-    ["Presentes:", pres],
-    ["Ausentes:", aus],
-    ["Justificados:", just],
-    ["% Asistencia:", pct],
-  ];
+  // Agrupar registros por mes para la tabla
+  const porMes = {};
+  const dk = new Date(fechaInicio);
+  while (dk <= fin) {
+    const ds = dk.toISOString().slice(0,10);
+    const [y,m] = ds.split("-");
+    const key = `${y}-${m}`;
+    if (!porMes[key]) porMes[key] = { año:parseInt(y), mes:parseInt(m)-1, dias:[] };
+    porMes[key].dias.push({ fecha:ds, dia:parseInt(ds.split("-")[2]), estado:reg[ds]||null });
+    dk.setDate(dk.getDate()+1);
+  }
 
-  const todasFilas = [...filasTitulo, ...filasData, ...resumen];
-  descargarCSV(todasFilas, `Asistencia_${alumno.nombre.replace(/ /g,"_")}_${fechaInicio}_${fechaFin}.csv`);
+  // Generar calendarios visuales por mes
+  const calendariosHTML = Object.values(porMes).map(({ año, mes, dias }) => {
+    const nombreMes = MESES_LARGO[mes];
+    const offset = new Date(año, mes, 1).getDay();
+    const totalDias = new Date(año, mes+1, 0).getDate();
+    const mapa = {};
+    dias.forEach(d => { mapa[d.dia] = d.estado; });
+
+    let celdas = "";
+    for(let i=0;i<offset;i++) celdas += `<td></td>`;
+    for(let d=1;d<=totalDias;d++){
+      const est = mapa[d];
+      let bg="#f9fafb",color="#9ca3af",letra="";
+      if(est==="presente"){bg="#dcfce7";color="#15803d";letra="P";}
+      else if(est==="ausente"){bg="#fee2e2";color="#b91c1c";letra="A";}
+      else if(est==="justificado"){bg="#fef9c3";color="#92400e";letra="J";}
+      const dow = new Date(año,mes,d).getDay();
+      const finSem = dow===0||dow===6;
+      if(finSem && !est){ bg="#f1f5f9"; color="#cbd5e1"; }
+      celdas += `<td style="background:${bg};color:${color};text-align:center;padding:5px 2px;font-size:10px;font-weight:700;border-radius:3px;">
+        <div style="font-size:9px;font-weight:400;color:inherit;opacity:.7">${d}</div>
+        <div>${letra||"·"}</div>
+      </td>`;
+    }
+
+    // Stats del mes
+    const regs = dias.filter(d=>d.estado);
+    const mpres = regs.filter(d=>d.estado==="presente").length;
+    const maus  = regs.filter(d=>d.estado==="ausente").length;
+    const mjust = regs.filter(d=>d.estado==="justificado").length;
+    const mtot  = regs.length;
+    const mpct  = mtot>0?Math.round((mpres/mtot)*100):null;
+
+    return `
+    <div style="margin-bottom:16px;break-inside:avoid">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-weight:800;font-size:13px;color:#1e3a5f">${nombreMes} ${año}</div>
+        <div style="display:flex;gap:8px;font-size:10px">
+          <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-weight:700">P: ${mpres}</span>
+          <span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-weight:700">A: ${maus}</span>
+          <span style="background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:700">J: ${mjust}</span>
+          ${mpct!==null?`<span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:10px;font-weight:800">${mpct}%</span>`:""}
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:separate;border-spacing:2px">
+        <thead>
+          <tr>
+            ${["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"].map(d=>`<th style="text-align:center;font-size:9px;font-weight:700;color:#64748b;padding:3px">${d}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>${celdas.slice(0,7*4+offset>totalDias+offset?celdas.length:undefined)}</tr>
+        </tbody>
+      </table>
+      <!-- Tabla del mes en filas de semana -->
+      ${generarSemanas(año, mes, mapa)}
+    </div>`;
+  }).join("");
+
+  // Generar tabla semanal del mes (más legible)
+  function generarSemanas(año, mes, mapa) {
+    const offset = new Date(año, mes, 1).getDay();
+    const totalDias = new Date(año, mes+1, 0).getDate();
+    let semanas = [];
+    let semana = Array(offset).fill(null);
+    for(let d=1;d<=totalDias;d++){
+      semana.push(d);
+      if(semana.length===7||(d===totalDias)){
+        while(semana.length<7) semana.push(null);
+        semanas.push([...semana]);
+        semana=[];
+      }
+    }
+    return `<table style="width:100%;border-collapse:separate;border-spacing:2px;margin-top:2px">
+      <thead><tr>${["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"].map(d=>`<th style="text-align:center;font-size:9px;font-weight:700;color:#64748b;padding:2px;width:14.28%">${d}</th>`).join("")}</tr></thead>
+      <tbody>
+        ${semanas.map(sem=>`<tr>${sem.map(d=>{
+          if(!d) return `<td style="padding:3px"></td>`;
+          const est=mapa[d];
+          let bg="#f9fafb",color="#9ca3af",letra="·";
+          if(est==="presente"){bg="#dcfce7";color="#15803d";letra="P";}
+          else if(est==="ausente"){bg="#fee2e2";color="#b91c1c";letra="A";}
+          else if(est==="justificado"){bg="#fef9c3";color="#92400e";letra="J";}
+          const dow=new Date(año,mes,d).getDay();
+          if((dow===0||dow===6)&&!est){bg="#f1f5f9";color="#cbd5e1";}
+          return `<td style="background:${bg};color:${color};text-align:center;padding:5px 2px;border-radius:4px;font-size:10px;font-weight:700;border:1px solid ${bg==="f9fafb"?"#e5e7eb":bg};">
+            <div style="font-size:8px;font-weight:400;opacity:.6">${d}</div>
+            <div>${letra}</div>
+          </td>`;
+        }).join("")}</tr>`).join("")}
+      </tbody>
+    </table>`;
+  }
+
+  // Lista detallada de faltas
+  const faltas = [];
+  const dk2 = new Date(fechaInicio);
+  while (dk2 <= fin) {
+    const ds = dk2.toISOString().slice(0,10);
+    const est = reg[ds];
+    if (est === "ausente" || est === "justificado") {
+      const [y,m,day] = ds.split("-");
+      faltas.push({ fecha:ds, label:`${parseInt(day)} ${MESES_LARGO[parseInt(m)-1]} ${y}`, estado:est });
+    }
+    dk2.setDate(dk2.getDate()+1);
+  }
+
+  const faltasHTML = faltas.length === 0
+    ? `<div style="padding:12px;background:#f0fdf4;border-radius:8px;color:#15803d;font-weight:700;font-size:12px">
+        ✅ Sin ausencias ni justificados en este periodo
+       </div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead>
+          <tr style="background:#1e3a5f">
+            <th style="color:#fff;padding:7px 10px;text-align:left">#</th>
+            <th style="color:#fff;padding:7px 10px;text-align:left">Fecha</th>
+            <th style="color:#fff;padding:7px 10px;text-align:center">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${faltas.map((f,i)=>`
+            <tr style="background:${i%2?"#f8fafc":"#fff"}">
+              <td style="padding:6px 10px;color:#64748b">${i+1}</td>
+              <td style="padding:6px 10px;font-weight:600">${f.label}</td>
+              <td style="padding:6px 10px;text-align:center">
+                <span style="padding:3px 10px;border-radius:10px;font-weight:700;font-size:10px;
+                  background:${f.estado==="ausente"?"#fee2e2":"#fef9c3"};
+                  color:${f.estado==="ausente"?"#b91c1c":"#92400e"}">
+                  ${f.estado==="ausente"?"❌ Ausente":"📋 Justificado"}
+                </span>
+              </td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Asistencia Individual — ${alumno.nombre}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#1e293b;background:#fff;padding:24px;font-size:11px}
+  h2{font-size:12px;font-weight:700;color:#1e3a5f;border-left:4px solid #1e3a5f;padding-left:8px;
+    text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+  .footer{margin-top:16px;text-align:center;font-size:9px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px}
+  @media print{body{padding:12px}button{display:none!important}@page{size:portrait;margin:1cm}}
+</style>
+</head>
+<body>
+
+<!-- ENCABEZADO -->
+<div style="display:flex;align-items:center;gap:16px;border-bottom:4px solid #1e3a5f;padding-bottom:12px;margin-bottom:16px">
+  <div style="width:52px;height:52px;background:linear-gradient(135deg,#1e3a5f,#2c6fad);border-radius:12px;
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;flex-shrink:0">🏫</div>
+  <div>
+    <div style="font-size:16px;font-weight:800;color:#1e3a5f">Escuela Primaria EduGestión</div>
+    <div style="font-size:10px;color:#64748b;margin-top:2px">Ciudad Juárez, Chihuahua · Turno Vespertino · Ciclo 2026-2027</div>
+    <div style="font-size:10px;color:#64748b">Reporte generado el ${fechaHoy}</div>
+  </div>
+  <div style="margin-left:auto;display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+    <div style="padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;background:#1e3a5f;color:#fff">
+      👤 Reporte Individual de Asistencia
+    </div>
+    <div style="padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">
+      📅 ${new Date(fechaInicio).toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}
+      → ${new Date(fechaFin).toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"})}
+    </div>
+  </div>
+</div>
+
+<!-- DATOS DEL ALUMNO -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+    <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#2c6fad);
+      display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0">
+      ${INITIALS(alumno.nombre)}
+    </div>
+    <div>
+      <div style="font-weight:800;font-size:14px">${alumno.nombre}</div>
+      <div style="font-size:10px;color:#64748b;margin-top:2px">Grupo: <strong>${grupo?.nombre||alumno.grupo}</strong></div>
+      <div style="font-size:10px;color:#64748b">Maestro: <strong>${maestro?.nombre||"—"}</strong></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#15803d">${pres}</div>
+      <div style="font-size:9px;font-weight:700;color:#15803d">PRESENTES</div>
+    </div>
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#b91c1c">${aus}</div>
+      <div style="font-size:9px;font-weight:700;color:#b91c1c">AUSENTES</div>
+    </div>
+    <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#92400e">${just}</div>
+      <div style="font-size:9px;font-weight:700;color:#92400e">JUSTIFICADOS</div>
+    </div>
+    <div style="background:${pct>=90?"#f0fdf4":pct>=75?"#fefce8":"#fef2f2"};border:1px solid ${pct>=90?"#86efac":pct>=75?"#fde047":"#fca5a5"};border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:${pctColor}">${pct!==null?pct+"%":"—"}</div>
+      <div style="font-size:9px;font-weight:700;color:${pctColor}">% ASISTENCIA</div>
+    </div>
+  </div>
+</div>
+
+<!-- BARRA DE PROGRESO -->
+<div style="background:#f1f5f9;border-radius:8px;padding:10px 14px;margin-bottom:16px;border:1px solid #e2e8f0">
+  <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px">
+    <span style="font-weight:700">Tasa de asistencia en el periodo</span>
+    <span style="font-weight:800;color:${pctColor}">${pct!==null?pct+"%":"Sin datos"}</span>
+  </div>
+  <div style="background:#e2e8f0;border-radius:999px;height:10px;overflow:hidden">
+    <div style="width:${pct||0}%;height:100%;border-radius:999px;
+      background:linear-gradient(90deg,${pct>=90?"#16a34a,#4ade80":pct>=75?"#d97706,#fbbf24":"#dc2626,#f87171"})"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:3px;color:#64748b">
+    <span>0%</span><span>Mínimo recomendado: 85%</span><span>100%</span>
+  </div>
+</div>
+
+<!-- CALENDARIOS POR MES -->
+<h2>📅 Calendario de Asistencia por Mes</h2>
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px">
+  ${Object.values(porMes).map(({ año, mes: mesIdx, dias }) => {
+    const offset = new Date(año, mesIdx, 1).getDay();
+    const totalDias = new Date(año, mesIdx+1, 0).getDate();
+    const mapa = {};
+    dias.forEach(d => { mapa[d.dia] = d.estado; });
+
+    let semanas = [];
+    let semana = Array(offset).fill(null);
+    for(let d=1;d<=totalDias;d++){
+      semana.push(d);
+      if(semana.length===7){semanas.push([...semana]);semana=[];}
+    }
+    if(semana.length){while(semana.length<7)semana.push(null);semanas.push(semana);}
+
+    const mpres = dias.filter(d=>d.estado==="presente").length;
+    const maus  = dias.filter(d=>d.estado==="ausente").length;
+    const mjust = dias.filter(d=>d.estado==="justificado").length;
+    const mtot  = dias.filter(d=>d.estado).length;
+    const mpct  = mtot>0?Math.round((mpres/mtot)*100):null;
+
+    return `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;break-inside:avoid">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <div style="font-weight:800;font-size:12px;color:#1e3a5f">${MESES_LARGO[mesIdx]} ${año}</div>
+        <div style="display:flex;gap:4px;font-size:9px">
+          <span style="background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:8px;font-weight:700">P:${mpres}</span>
+          <span style="background:#fee2e2;color:#b91c1c;padding:2px 6px;border-radius:8px;font-weight:700">A:${maus}</span>
+          <span style="background:#fef9c3;color:#92400e;padding:2px 6px;border-radius:8px;font-weight:700">J:${mjust}</span>
+          ${mpct!==null?`<span style="background:#eff6ff;color:#1d4ed8;padding:2px 6px;border-radius:8px;font-weight:800">${mpct}%</span>`:""}
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:separate;border-spacing:2px">
+        <thead><tr>${["D","L","M","M","J","V","S"].map(d=>`<th style="text-align:center;font-size:8px;font-weight:700;color:#94a3b8;padding:2px;width:14.28%">${d}</th>`).join("")}</tr></thead>
+        <tbody>${semanas.map(sem=>`<tr>${sem.map(d=>{
+          if(!d)return`<td></td>`;
+          const est=mapa[d];
+          let bg="#f9fafb",color="#9ca3af",letra="·";
+          if(est==="presente"){bg="#dcfce7";color="#15803d";letra="P";}
+          else if(est==="ausente"){bg="#fee2e2";color="#b91c1c";letra="A";}
+          else if(est==="justificado"){bg="#fef9c3";color="#92400e";letra="J";}
+          const dow=new Date(año,mesIdx,d).getDay();
+          if((dow===0||dow===6)&&!est){bg="#f1f5f9";color="#e2e8f0";}
+          return`<td style="background:${bg};color:${color};text-align:center;padding:4px 1px;border-radius:4px">
+            <div style="font-size:7px;opacity:.6">${d}</div>
+            <div style="font-size:9px;font-weight:800">${letra}</div>
+          </td>`;
+        }).join("")}</tr>`).join("")}</tbody>
+      </table>
+    </div>`;
+  }).join("")}
+</div>
+
+<!-- DETALLE DE FALTAS -->
+<h2>⚠️ Detalle de Ausencias y Justificados</h2>
+<div style="margin-bottom:16px">
+  ${faltasHTML}
+</div>
+
+<!-- FIRMA -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px;margin-top:20px">
+  <div style="text-align:center">
+    <div style="border-top:1px solid #334155;padding-top:5px;font-size:10px;color:#475569;margin-top:28px">
+      <strong>${maestro?.nombre||"_______________________"}</strong><br>Maestro Titular
+    </div>
+  </div>
+  <div style="text-align:center">
+    <div style="border-top:1px solid #334155;padding-top:5px;font-size:10px;color:#475569;margin-top:28px">
+      <strong>Ma. Norma Alvarez</strong><br>Director(a)
+    </div>
+  </div>
+  <div style="text-align:center">
+    <div style="border-top:1px solid #334155;padding-top:5px;font-size:10px;color:#475569;margin-top:28px">
+      <strong>_______________________</strong><br>Firma del Tutor
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  EduGestión · Sistema de Control Escolar · Ciudad Juárez, Chihuahua · ${fechaHoy}
+</div>
+
+<script>window.onload = () => window.print();</script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=900,height=800");
+  win.document.write(html);
+  win.document.close();
 }
 
-/* ── MODAL DESCARGA ASISTENCIA ── */
+/* ════════════════════════════════════════════════
+   MODAL DESCARGA — elige grupo o alumno + periodo
+════════════════════════════════════════════════ */
 function ModalDescarga({ grupoId, alumnos, db, onClose }) {
   const grupo   = db.grupos.find(g=>g.id===grupoId);
+  const maestro = grupo ? db.maestros.find(m=>m.id===grupo.maestroId) : null;
   const hoy     = new Date().toISOString().slice(0,10);
   const inicioC = CICLO_INICIO.toISOString().slice(0,10);
 
-  const [modo,       setModo]       = useState("grupo");   // "grupo" | "alumno"
-  const [alumnoId,   setAlumnoId]   = useState(alumnos[0]?.id || "");
-  const [fechaInicio,setFechaInicio]= useState(inicioC);
-  const [fechaFin,   setFechaFin]   = useState(hoy);
-
-  const maestro = grupo ? db.maestros.find(m=>m.id===grupo.maestroId) : null;
+  const [modo,        setModo]        = useState("grupo");
+  const [alumnoId,    setAlumnoId]    = useState(alumnos[0]?.id || "");
+  const [fechaInicio, setFechaInicio] = useState(inicioC);
+  const [fechaFin,    setFechaFin]    = useState(hoy);
 
   const handleDescargar = () => {
     if (!fechaInicio || !fechaFin) { toast.error("Selecciona el periodo"); return; }
-    if (fechaInicio > fechaFin) { toast.error("La fecha de inicio debe ser antes que la final"); return; }
+    if (fechaInicio > fechaFin)    { toast.error("La fecha inicio debe ser antes que la final"); return; }
 
     if (modo === "grupo") {
-      descargarAsistenciaGrupo(grupo, maestro, alumnos, db.asistencia, fechaInicio, fechaFin);
-      toast.success(`Descargando asistencia del grupo ${grupo?.nombre}…`);
+      generarPDFGrupo(grupo, maestro, alumnos, db.asistencia, fechaInicio, fechaFin);
+      toast.success("Abriendo reporte del grupo para imprimir / guardar como PDF…");
     } else {
       const al = alumnos.find(a=>a.id===alumnoId);
       if (!al) { toast.error("Selecciona un alumno"); return; }
-      descargarAsistenciaAlumno(al, grupo, db.asistencia, fechaInicio, fechaFin);
-      toast.success(`Descargando asistencia de ${al.nombre}…`);
+      generarPDFAlumno(al, grupo, maestro, db.asistencia, fechaInicio, fechaFin);
+      toast.success(`Abriendo reporte de ${al.nombre} para imprimir / guardar como PDF…`);
     }
     onClose();
   };
@@ -157,29 +721,26 @@ function ModalDescarga({ grupoId, alumnos, db, onClose }) {
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <div className="modal-title">📥 Descargar Asistencia</div>
+          <div className="modal-title">📄 Generar Reporte de Asistencia</div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
         </div>
 
-        {/* Selector modo */}
         <div style={{display:"flex",gap:8,marginBottom:16}}>
           <button className={`btn btn-sm ${modo==="grupo"?"btn-primary":""}`}
             style={{flex:1}} onClick={()=>setModo("grupo")}>
-            👥 Por Grupo
+            👥 Reporte de Grupo
           </button>
           <button className={`btn btn-sm ${modo==="alumno"?"btn-primary":""}`}
             style={{flex:1}} onClick={()=>setModo("alumno")}>
-            👤 Por Alumno
+            👤 Reporte Individual
           </button>
         </div>
 
-        {/* Info grupo */}
         <div style={{padding:"8px 12px",background:"var(--bg-base)",borderRadius:8,marginBottom:14,fontSize:13}}>
           <strong>Grupo:</strong> {grupo?.nombre || grupoId}
           {maestro && <span className="muted"> · Titular: {maestro.nombre}</span>}
         </div>
 
-        {/* Selector alumno si es modo alumno */}
         {modo === "alumno" && (
           <div className="form-group" style={{marginBottom:14}}>
             <label className="form-label">Alumno</label>
@@ -189,8 +750,7 @@ function ModalDescarga({ grupoId, alumnos, db, onClose }) {
           </div>
         )}
 
-        {/* Periodo */}
-        <div className="form-grid" style={{marginBottom:14}}>
+        <div className="form-grid" style={{marginBottom:10}}>
           <div className="form-group">
             <label className="form-label">Fecha inicio</label>
             <input type="date" className="form-control" value={fechaInicio}
@@ -203,15 +763,14 @@ function ModalDescarga({ grupoId, alumnos, db, onClose }) {
           </div>
         </div>
 
-        {/* Accesos rápidos periodo */}
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
           <span className="small muted" style={{alignSelf:"center"}}>Acceso rápido:</span>
           {[
-            {lbl:"Ciclo completo", ini:inicioC, fin:hoy},
-            {lbl:"Este mes", ini:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10), fin:hoy},
-            {lbl:"1er Trimestre", ini:"2026-08-24", fin:"2026-11-28"},
-            {lbl:"2do Trimestre", ini:"2026-12-01", fin:"2027-03-14"},
-            {lbl:"3er Trimestre", ini:"2027-03-17", fin:"2027-06-18"},
+            {lbl:"Ciclo completo",  ini:inicioC,      fin:hoy},
+            {lbl:"Este mes",        ini:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10), fin:hoy},
+            {lbl:"1er Trimestre",   ini:"2026-08-24",  fin:"2026-11-28"},
+            {lbl:"2do Trimestre",   ini:"2026-12-01",  fin:"2027-03-14"},
+            {lbl:"3er Trimestre",   ini:"2027-03-17",  fin:"2027-06-18"},
           ].map(({lbl,ini,fin})=>(
             <button key={lbl} className="btn btn-sm"
               onClick={()=>{setFechaInicio(ini);setFechaFin(fin>hoy?hoy:fin);}}>
@@ -222,13 +781,13 @@ function ModalDescarga({ grupoId, alumnos, db, onClose }) {
 
         <div style={{padding:"8px 12px",background:"#eff6ff",border:"1px solid #93c5fd",
           borderRadius:8,fontSize:12,marginBottom:14,color:"#1e40af"}}>
-          💡 El archivo se descargará en formato CSV (compatible con Excel y Google Sheets).
+          💡 Se abrirá una ventana con el reporte. Usa <strong>Ctrl+P</strong> o el menú de impresión del navegador para guardarlo como PDF.
         </div>
 
         <div className="form-actions">
           <button className="btn" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleDescargar}>
-            📥 Descargar CSV
+            📄 Generar PDF
           </button>
         </div>
       </div>
@@ -291,6 +850,7 @@ function CalendarioMes({ año, mes, registros }) {
 
 /* ── MODAL HISTORIAL ── */
 function ModalHistorial({ alumno, grupo, db, onClose }) {
+  const maestro = grupo ? db.maestros.find(m=>m.id===grupo.maestroId) : null;
   const hoy    = new Date();
   const [año,  setAño]  = useState(hoy.getFullYear());
   const [mes,  setMes]  = useState(hoy.getMonth());
@@ -310,14 +870,12 @@ function ModalHistorial({ alumno, grupo, db, onClose }) {
   const prevMes = () => { if(mes===0){setMes(11);setAño(a=>a-1);}else setMes(m=>m-1); };
   const nextMes = () => { if(mes===11){setMes(0);setAño(a=>a+1);}else setMes(m=>m+1); };
 
-  const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
   const hoyStr  = hoy.toISOString().slice(0,10);
   const inicioC = CICLO_INICIO.toISOString().slice(0,10);
 
   const handleDescargar = () => {
-    descargarAsistenciaAlumno(alumno, grupo, db.asistencia, inicioC, hoyStr);
-    toast.success(`Descargando asistencia de ${alumno.nombre}…`);
+    generarPDFAlumno(alumno, grupo, maestro, db.asistencia, inicioC, hoyStr);
+    toast.success("Abriendo reporte para imprimir / guardar como PDF…");
   };
 
   return (
@@ -334,9 +892,8 @@ function ModalHistorial({ alumno, grupo, db, onClose }) {
             <div style={{fontWeight:700}}>{alumno.nombre}</div>
             <div className="small muted">Grupo {alumno.grupo}</div>
           </div>
-          {/* Botón de descarga individual desde el historial */}
           <button className="btn btn-sm btn-primary" onClick={handleDescargar}>
-            📥 Descargar CSV
+            📄 Descargar PDF
           </button>
         </div>
 
@@ -371,7 +928,7 @@ function ModalHistorial({ alumno, grupo, db, onClose }) {
 
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <button className="btn btn-sm" onClick={prevMes}>‹ Anterior</button>
-          <strong>{MESES[mes]} {año}</strong>
+          <strong>{MESES_LARGO[mes]} {año}</strong>
           <button className="btn btn-sm" onClick={nextMes}>Siguiente ›</button>
         </div>
 
@@ -395,10 +952,6 @@ function Asistencia() {
   const [histAlumno, setHistAlumno] = useState(null);
   const [modalDescarga, setModalDescarga] = useState(false);
 
-  const gruposMaestro = auth?.rol === "maestro"
-    ? db.grupos.filter(g => g.id === auth.grupo)
-    : db.grupos;
-
   const [grupoId, setGrupoId] = useState(
     auth?.rol === "maestro" ? auth.grupo : (db.grupos[0]?.id || "")
   );
@@ -414,15 +967,13 @@ function Asistencia() {
   },[db.asistencia, fecha]);
 
   const toggleEstado = useCallback((alumnoId)=>{
-    const actual   = getEstado(alumnoId);
+    const actual    = getEstado(alumnoId);
     const siguiente = ESTADOS[(ESTADOS.indexOf(actual)+1)%ESTADOS.length];
     const maestroId = db.grupos.find(g=>g.id===grupoId)?.maestroId || "";
     db.guardarAsistencia(alumnoId, fecha, siguiente, maestroId);
   },[getEstado, db, grupoId, fecha]);
 
-  const guardarTodo = () => {
-    toast.success(`Asistencia del ${fecha} guardada correctamente`);
-  };
+  const guardarTodo = () => toast.success(`Asistencia del ${fecha} guardada correctamente`);
 
   const marcarTodos = (estado) => {
     const maestroId = db.grupos.find(g=>g.id===grupoId)?.maestroId || "";
@@ -430,13 +981,12 @@ function Asistencia() {
     toast.success(`Todos marcados como ${ESTADO_LABEL[estado].toLowerCase()}`);
   };
 
-  const asistHoy   = db.asistencia.filter(a=>a.fecha===fecha&&alumnosGrupo.some(al=>al.id===a.alumnoId));
-  const presentes  = asistHoy.filter(a=>a.estado==="presente").length;
-  const ausentes   = asistHoy.filter(a=>a.estado==="ausente").length;
+  const asistHoy     = db.asistencia.filter(a=>a.fecha===fecha&&alumnosGrupo.some(al=>al.id===a.alumnoId));
+  const presentes    = asistHoy.filter(a=>a.estado==="presente").length;
+  const ausentes     = asistHoy.filter(a=>a.estado==="ausente").length;
   const justificados = asistHoy.filter(a=>a.estado==="justificado").length;
-  const pctHoy     = alumnosGrupo.length ? Math.round((presentes/alumnosGrupo.length)*100) : 0;
-
-  const pctCiclo = Math.round(diasTranscurridos()/DIAS_HABILES_CICLO*100);
+  const pctHoy       = alumnosGrupo.length ? Math.round((presentes/alumnosGrupo.length)*100) : 0;
+  const pctCiclo     = Math.round(diasTranscurridos()/DIAS_HABILES_CICLO*100);
 
   const grupo   = db.grupos.find(g=>g.id===grupoId);
   const maestro = grupo ? db.maestros.find(m=>m.id===grupo.maestroId) : null;
@@ -459,12 +1009,9 @@ function Asistencia() {
               </span>
             )}
             <input type="date" className="form-control" style={{width:160}}
-              value={fecha} onChange={e=>setFecha(e.target.value)}
-              max={today}/>
-            {/* Botón descarga asistencia */}
-            <button className="btn btn-sm btn-primary" onClick={()=>setModalDescarga(true)}
-              title="Descargar reporte de asistencia">
-              📥 Descargar
+              value={fecha} onChange={e=>setFecha(e.target.value)} max={today}/>
+            <button className="btn btn-sm btn-primary" onClick={()=>setModalDescarga(true)}>
+              📄 Generar PDF
             </button>
           </div>
         </div>
@@ -530,8 +1077,7 @@ function Asistencia() {
                   <div key={a.id} className={`asistencia-card ${estado}`}>
                     <div className="av">{INITIALS(a.nombre)}</div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,
-                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      <div style={{fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                         {a.nombre.split(" ").slice(0,2).join(" ")}
                       </div>
                       <div className="small" style={{color:ESTADO_COLOR[estado],fontWeight:600}}>
@@ -557,24 +1103,12 @@ function Asistencia() {
         }
       </div>
 
-      {/* Modal historial individual */}
       {histAlumno && (
-        <ModalHistorial
-          alumno={histAlumno}
-          grupo={grupo}
-          db={db}
-          onClose={()=>setHistAlumno(null)}
-        />
+        <ModalHistorial alumno={histAlumno} grupo={grupo} db={db} onClose={()=>setHistAlumno(null)}/>
       )}
 
-      {/* Modal descarga */}
       {modalDescarga && (
-        <ModalDescarga
-          grupoId={grupoId}
-          alumnos={alumnosGrupo}
-          db={db}
-          onClose={()=>setModalDescarga(false)}
-        />
+        <ModalDescarga grupoId={grupoId} alumnos={alumnosGrupo} db={db} onClose={()=>setModalDescarga(false)}/>
       )}
     </Layout>
   );
