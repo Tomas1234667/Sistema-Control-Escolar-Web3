@@ -372,7 +372,6 @@ function ModalCalificacion({ alumno, califExistente, materiasDisponibles, trimes
     setTri1(reg?.tri1 ?? "");
     setTri2(reg?.tri2 ?? "");
     setTri3(reg?.tri3 ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [materia]);
 
   const calcProm = () => {
