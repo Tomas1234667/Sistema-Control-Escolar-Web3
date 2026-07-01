@@ -606,9 +606,17 @@ function Calificaciones() {
   const [trimestre, setTrimestre] = useState("t1");
   const [modal,     setModal]     = useState(null);
 
-  const alumnos = db.alumnos.filter(
-    a=>a.grupo===grupoId && a.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  // Lista de alumnos del grupo seleccionado (para boletas y estadísticas del grupo)
+  const alumnosDelGrupo = db.alumnos.filter(a=>a.grupo===grupoId);
+
+  // Si hay texto de búsqueda, se busca en TODOS los alumnos registrados
+  // (no solo en el grupo seleccionado), igual que en Maestros/Alumnos.
+  // Antes solo buscaba dentro de a.grupo===grupoId, por eso "no encontraba"
+  // alumnos que sí estaban registrados pero en otro grupo.
+  const termino = busqueda.trim().toLowerCase();
+  const alumnos = termino
+    ? db.alumnos.filter(a=>a.nombre.toLowerCase().includes(termino))
+    : alumnosDelGrupo;
 
   const handleSave = (data) => {
     db.guardarCalificacion(data);
@@ -666,12 +674,12 @@ function Calificaciones() {
             <select className="form-control" style={{width:140}} value={grupoId} onChange={e=>setGrupoId(e.target.value)}>
               {db.grupos.map(g=><option key={g.id} value={g.id}>{g.nombre}</option>)}
             </select>
-            <input className="form-control" style={{width:200}} placeholder="🔍 Buscar alumno..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
+            <input className="form-control" style={{width:200}} placeholder="🔍 Buscar alumno (todos los grupos)..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
             <button className="btn btn-sm btn-primary"
               onClick={()=>{
                 const g=db.grupos.find(x=>x.id===grupoId);
                 const m=db.maestros.find(x=>x.id===g?.maestroId);
-                generarBoletaGrupoPDF(g,m,alumnos,db.calificaciones,trimestre);
+                generarBoletaGrupoPDF(g,m,alumnosDelGrupo,db.calificaciones,trimestre);
                 toast.success("Generando boleta del grupo…");
               }}>
               📄 Boleta del grupo ({TL[trimestre]})
@@ -680,7 +688,7 @@ function Calificaciones() {
               onClick={()=>{
                 const g=db.grupos.find(x=>x.id===grupoId);
                 const m=db.maestros.find(x=>x.id===g?.maestroId);
-                generarBoletaGrupoPDF(g,m,alumnos,db.calificaciones,"todos");
+                generarBoletaGrupoPDF(g,m,alumnosDelGrupo,db.calificaciones,"todos");
                 toast.success("Generando boleta completa del grupo…");
               }}>
               📄 Boleta completa (3 trimestres)
@@ -694,7 +702,7 @@ function Calificaciones() {
         </div>
 
         {alumnos.length===0
-          ? <div className="empty-state"><div className="empty-icon">📚</div><div className="empty-title">No hay alumnos en este grupo</div></div>
+          ? <div className="empty-state"><div className="empty-icon">📚</div><div className="empty-title">{termino ? "No se encontraron alumnos con ese nombre" : "No hay alumnos en este grupo"}</div></div>
           : (
             <div className="table-wrap">
               <table>

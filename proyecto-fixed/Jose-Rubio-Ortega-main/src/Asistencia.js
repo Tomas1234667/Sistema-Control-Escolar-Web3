@@ -918,8 +918,19 @@ function Asistencia() {
   const [grupoId, setGrupoId] = useState(
     auth?.rol==="maestro" ? auth.grupo : (db.grupos[0]?.id||"")
   );
+  const [busqueda, setBusqueda] = useState("");
 
-  const alumnosGrupo = useMemo(()=>db.alumnos.filter(a=>a.grupo===grupoId),[db.alumnos,grupoId]);
+  // Antes esta vista no tenía buscador de texto (solo el selector de grupo),
+  // por eso "no encontraba" alumnos: no había forma de teclear un nombre.
+  // Si hay texto de búsqueda, se busca en TODOS los alumnos registrados
+  // (cualquier letra del nombre), igual que en Maestros/Alumnos/Calificaciones.
+  const termino = busqueda.trim().toLowerCase();
+  const alumnosGrupo = useMemo(
+    ()=> termino
+      ? db.alumnos.filter(a=>a.nombre.toLowerCase().includes(termino))
+      : db.alumnos.filter(a=>a.grupo===grupoId),
+    [db.alumnos,grupoId,termino]
+  );
 
   const getEstado = useCallback((alumnoId)=>{
     const reg = db.asistencia.find(a=>a.alumnoId===alumnoId&&a.fecha===fecha);
@@ -964,6 +975,8 @@ function Asistencia() {
             {auth?.rol==="maestro" && (
               <span className="badge badge-info" style={{fontSize:14,padding:"6px 14px"}}>{grupo?.nombre||grupoId}</span>
             )}
+            <input className="form-control" style={{width:200}} placeholder="🔍 Buscar alumno (todos los grupos)..."
+              value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
             <input type="date" className="form-control" style={{width:160}} value={fecha}
               onChange={e=>setFecha(e.target.value)} max={today}/>
             <button className="btn btn-sm btn-primary" onClick={()=>setModalDescarga(true)}>📄 Generar PDF</button>
@@ -1018,7 +1031,7 @@ function Asistencia() {
         </div>
 
         {alumnosGrupo.length===0
-          ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-title">No hay alumnos en este grupo</div></div>
+          ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-title">{termino ? "No se encontraron alumnos con ese nombre" : "No hay alumnos en este grupo"}</div></div>
           : (
             <div className="asistencia-grid">
               {alumnosGrupo.map(a=>{
