@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useAppDB, Layout } from "./App";
 
@@ -345,11 +345,35 @@ ${hdrHTML("📊 Boleta de Grupo", TL[triSel], fechaHoy)}
    MODAL CALIFICACION (sin cambios de lógica)
 ════════════════════════════════════ */
 function ModalCalificacion({ alumno, califExistente, materiasDisponibles, trimestre, onClose, onSave }) {
+  const db = useAppDB();
   const esEdicion = !!califExistente;
   const [materia, setMateria] = useState(califExistente?.materia || materiasDisponibles[0] || "");
-  const [tri1, setTri1] = useState(califExistente?.tri1 ?? "");
-  const [tri2, setTri2] = useState(califExistente?.tri2 ?? "");
-  const [tri3, setTri3] = useState(califExistente?.tri3 ?? "");
+
+  /* Registro real ya guardado para la materia seleccionada (si existe).
+     Esto es lo que evita que al registrar/editar UN trimestre se
+     pisen los valores ya guardados de los OTROS trimestres. */
+  const buscarExistente = (m) =>
+    califExistente && califExistente.materia === m
+      ? califExistente
+      : db.calificaciones.find(c=>c.alumnoId===alumno.id && c.materia===m && c.ciclo===CICLO) || null;
+
+  const [existente, setExistente] = useState(() => buscarExistente(materia));
+  const [tri1, setTri1] = useState(existente?.tri1 ?? "");
+  const [tri2, setTri2] = useState(existente?.tri2 ?? "");
+  const [tri3, setTri3] = useState(existente?.tri3 ?? "");
+
+  /* Al cambiar de materia (solo posible cuando se registran varias
+     materias pendientes a la vez) recargamos SU propio registro,
+     para no arrastrar valores de la materia anterior. */
+  useEffect(() => {
+    if (esEdicion) return; // en edición la materia es fija
+    const reg = buscarExistente(materia);
+    setExistente(reg);
+    setTri1(reg?.tri1 ?? "");
+    setTri2(reg?.tri2 ?? "");
+    setTri3(reg?.tri3 ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materia]);
 
   const calcProm = () => {
     if (trimestre==="t1"&&tri1!=="") return Number(tri1).toFixed(1);
@@ -365,15 +389,15 @@ function ModalCalificacion({ alumno, califExistente, materiasDisponibles, trimes
     if (trimestre==="t1") {
       if (tri1==="") { toast.error("Ingresa la calificación del 1er trimestre"); return; }
       if (isNaN(Number(tri1))||Number(tri1)<0||Number(tri1)>10) { toast.error("Calificación entre 0 y 10"); return; }
-      onSave({ alumnoId:alumno.id, materia, tri1:Number(tri1), tri2:califExistente?.tri2??0, tri3:califExistente?.tri3??0, ciclo:CICLO });
+      onSave({ alumnoId:alumno.id, materia, tri1:Number(tri1), tri2:existente?.tri2??0, tri3:existente?.tri3??0, ciclo:CICLO });
     } else if (trimestre==="t2") {
       if (tri2==="") { toast.error("Ingresa la calificación del 2do trimestre"); return; }
       if (isNaN(Number(tri2))||Number(tri2)<0||Number(tri2)>10) { toast.error("Calificación entre 0 y 10"); return; }
-      onSave({ alumnoId:alumno.id, materia, tri1:Number(tri1), tri2:Number(tri2), tri3:califExistente?.tri3??0, ciclo:CICLO });
+      onSave({ alumnoId:alumno.id, materia, tri1:existente?.tri1??0, tri2:Number(tri2), tri3:existente?.tri3??0, ciclo:CICLO });
     } else {
       if (tri3==="") { toast.error("Ingresa la calificación del 3er trimestre"); return; }
       if (isNaN(Number(tri3))||Number(tri3)<0||Number(tri3)>10) { toast.error("Calificación entre 0 y 10"); return; }
-      onSave({ alumnoId:alumno.id, materia, tri1:Number(tri1), tri2:Number(tri2), tri3:Number(tri3), ciclo:CICLO });
+      onSave({ alumnoId:alumno.id, materia, tri1:existente?.tri1??0, tri2:existente?.tri2??0, tri3:Number(tri3), ciclo:CICLO });
     }
   };
 
@@ -587,7 +611,14 @@ function Calificaciones() {
     a=>a.grupo===grupoId && a.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
 
-  const handleSave = (data) => { db.guardarCalificacion(data); toast.success("✅ Calificación guardada"); setModal(null); };
+  const handleSave = (data) => {
+    db.guardarCalificacion(data);
+    toast.success("✅ Calificación guardada");
+    /* No cerramos todo: regresamos a la ficha de calificaciones del
+       alumno para que se pueda seguir registrando sin reabrir nada */
+    const alumno = modal?.alumno;
+    setModal(alumno ? { tipo:"detalle", alumno } : null);
+  };
 
   const califsDeAlumno = (id) => db.calificaciones.filter(c=>c.alumnoId===id && c.ciclo===CICLO);
 
@@ -644,7 +675,16 @@ function Calificaciones() {
                 generarBoletaGrupoPDF(g,m,alumnos,db.calificaciones,trimestre);
                 toast.success("Generando boleta del grupo…");
               }}>
-              📄 Boleta del grupo
+              📄 Boleta del grupo ({TL[trimestre]})
+            </button>
+            <button className="btn btn-sm"
+              onClick={()=>{
+                const g=db.grupos.find(x=>x.id===grupoId);
+                const m=db.maestros.find(x=>x.id===g?.maestroId);
+                generarBoletaGrupoPDF(g,m,alumnos,db.calificaciones,"todos");
+                toast.success("Generando boleta completa del grupo…");
+              }}>
+              📄 Boleta completa (3 trimestres)
             </button>
           </div>
         </div>

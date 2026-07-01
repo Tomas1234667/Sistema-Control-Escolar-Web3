@@ -472,6 +472,23 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .activity-item:last-child { border-bottom: none; }
 .activity-item span { flex-shrink: 0; font-size: 12px; color: var(--text-muted); min-width: 80px; }
 
+/* ══════════════════════════════════════════
+   CALENDARIO ESCOLAR (react-calendar)
+   Sábado/Domingo se marcan como días sin clases
+══════════════════════════════════════════ */
+.react-calendar {
+  width: 100%; max-width: 320px; border: 1px solid var(--border) !important;
+  border-radius: 12px; font-family: inherit; background: var(--bg-card) !important;
+  padding: 8px; box-shadow: var(--shadow-sm);
+}
+.react-calendar__tile { border-radius: 8px; padding: 8px 4px; }
+.react-calendar__tile.dia-sin-clases {
+  background: var(--bg-base) !important; color: var(--text-muted) !important;
+  text-decoration: line-through; opacity: .55; cursor: not-allowed;
+}
+.react-calendar__tile:disabled { background: var(--bg-base); }
+.react-calendar__navigation button { font-family: inherit; }
+
 
 /* ══════════════════════════════════════════
    RESPONSIVE

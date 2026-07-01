@@ -116,9 +116,13 @@ function ClimaCard() {
   );
 }
 
+/* Fin de semana = no hay clases, se marca en el calendario y no cuenta como día hábil */
+const esFinDeSemana = (date) => { const d = date.getDay(); return d === 0 || d === 6; };
+
 function Dashboard() {
   const db = useAppDB();
   const navigate = useNavigate();
+  const [alertasVisibles, setAlertasVisibles] = useState(true);
 
   const totalAlumnos = db.alumnos.length;
   const hoy = new Date().toISOString().slice(0, 10);
@@ -190,22 +194,47 @@ function Dashboard() {
       <ClimaCard />
 
       {/* ALERTAS */}
-      {enRiesgo.map((a) => (
-        <div key={a.id} className="alert alert-danger mb-8"
-          style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
-          <span style={{fontSize:20}}>🚨</span>
-          <div style={{flex:1,display:"flex",alignItems:"center",gap:12}}>
-            <div className="avatar">{a.nombre.split(" ").map(n=>n[0]).slice(0,2).join("")}</div>
-            <div>
-              <strong>{a.nombre}</strong> — En riesgo escolar
-              <div className="small muted">
-                {db.faltasAlumno(a.id)} faltas · Promedio: {db.promedioAlumno(a.id)??"--"} · Grupo: {a.grupo}
-              </div>
+      {enRiesgo.length > 0 && (
+        <div className="card mb-8" style={{padding:12}}>
+          <button
+            onClick={()=>setAlertasVisibles(v=>!v)}
+            style={{
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+              gap:10, background:"none", border:"none", cursor:"pointer",
+              font:"inherit", color:"var(--text-primary)", padding:"2px 4px",
+            }}
+          >
+            <span style={{display:"flex",alignItems:"center",gap:8,fontWeight:700,fontSize:13}}>
+              🚨 Alumnos en riesgo ({enRiesgo.length})
+            </span>
+            <span style={{fontSize:12,color:"var(--text-muted)",display:"flex",alignItems:"center",gap:4}}>
+              {alertasVisibles ? "Ocultar" : "Mostrar"}
+              <span style={{transition:"transform .15s",transform:alertasVisibles?"rotate(180deg)":"rotate(0deg)"}}>▾</span>
+            </span>
+          </button>
+
+          {alertasVisibles && (
+            <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:8}}>
+              {enRiesgo.map((a) => (
+                <div key={a.id} className="alert alert-danger"
+                  style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:0}}>
+                  <span style={{fontSize:20}}>🚨</span>
+                  <div style={{flex:1,display:"flex",alignItems:"center",gap:12}}>
+                    <div className="avatar">{a.nombre.split(" ").map(n=>n[0]).slice(0,2).join("")}</div>
+                    <div>
+                      <strong>{a.nombre}</strong> — En riesgo escolar
+                      <div className="small muted">
+                        {db.faltasAlumno(a.id)} faltas · Promedio: {db.promedioAlumno(a.id)??"--"} · Grupo: {a.grupo}
+                      </div>
+                    </div>
+                  </div>
+                  <button className="btn btn-sm btn-danger" onClick={()=>navigate("/riesgo")}>Ver alertas</button>
+                </div>
+              ))}
             </div>
-          </div>
-          <button className="btn btn-sm btn-danger" onClick={()=>navigate("/riesgo")}>Ver alertas</button>
+          )}
         </div>
-      ))}
+      )}
 
       {/* QR + CALENDARIO */}
       <div className="grid-2 mb-24" style={{marginTop:enRiesgo.length?16:0}}>
@@ -228,8 +257,14 @@ function Dashboard() {
 
         <div className="card">
           <div className="card-header"><div className="card-title">Calendario Escolar</div></div>
-          <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
-            <Calendar />
+          <div style={{display:"flex",justifyContent:"center",marginBottom:8}}>
+            <Calendar
+              tileClassName={({date})=> esFinDeSemana(date) ? "dia-sin-clases" : null}
+              tileDisabled={({date})=> esFinDeSemana(date)}
+            />
+          </div>
+          <div className="small muted" style={{textAlign:"center",marginBottom:20}}>
+            Los sábados y domingos aparecen en gris: no hay clases esos días.
           </div>
           <div className="card-header"><div className="card-title">Distribución de Riesgo</div></div>
           {pieData.length>0 ? (

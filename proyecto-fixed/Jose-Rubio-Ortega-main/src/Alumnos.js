@@ -6,6 +6,15 @@ const INITIALS = (n="") => n.split(" ").map(w=>w[0]||"").slice(0,2).join("").toU
 
 const EMPTY_FORM = { nombre:"", fechaNac:"", curp:"", grupo:"", tutor:"", tel:"", email:"", sangre:"O+", alergias:"Ninguna" };
 
+/* Convierte AAAA-MM-DD (formato nativo del input) a DD/MM/AAAA
+   para mostrarla en pantalla y en la boleta sin confundir el orden */
+const fmtFechaCorta = (f) => {
+  if (!f) return "—";
+  const [y,m,d] = f.split("-");
+  if (!y || !m || !d) return f;
+  return `${d}/${m}/${y}`;
+};
+
 /* ── GENERA LA BOLETA Y LA IMPRIME COMO PDF ── */
 function descargarBoletaPDF(alumno, db) {
   const prom    = db.promedioAlumno(alumno.id);
@@ -83,7 +92,7 @@ function descargarBoletaPDF(alumno, db) {
   <div class="field"><label>CURP</label><span>${alumno.curp||"—"}</span></div>
   <div class="field"><label>Grupo</label><span>${alumno.grupo} — ${grupo?grupo.nombre:""}</span></div>
   <div class="field"><label>Maestro titular</label><span>${maestro?maestro.nombre:"—"}</span></div>
-  <div class="field"><label>Fecha de nacimiento</label><span>${alumno.fechaNac}</span></div>
+  <div class="field"><label>Fecha de nacimiento</label><span>${fmtFechaCorta(alumno.fechaNac)}</span></div>
   <div class="field"><label>Tipo de sangre</label><span>${alumno.sangre}</span></div>
   <div class="field"><label>Tutor</label><span>${alumno.tutor}</span></div>
   <div class="field"><label>Teléfono tutor</label><span>${alumno.tel||"—"}</span></div>
@@ -179,7 +188,7 @@ function ModalExpediente({ alumno, onClose }) {
           <div>
             <div className="exp-section">
               <div className="exp-section-title">Datos Personales</div>
-              <div className="exp-row"><span>Nacimiento</span><span>{alumno.fechaNac}</span></div>
+              <div className="exp-row"><span>Nacimiento</span><span>{fmtFechaCorta(alumno.fechaNac)}</span></div>
               <div className="exp-row"><span>CURP</span><span style={{fontSize:11}}>{alumno.curp||"—"}</span></div>
               <div className="exp-row"><span>Tutor</span><span>{alumno.tutor}</span></div>
               <div className="exp-row"><span>Teléfono</span><span>{alumno.tel}</span></div>
