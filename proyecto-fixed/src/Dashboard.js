@@ -303,7 +303,7 @@ function Dashboard() {
             <YAxis domain={[0,10]}/>
             <Tooltip/>
             <Legend/>
-            <Bar dataKey="promedio" fill="#4a6fa5" radius={[6,6,0,0]}/>
+            <Bar dataKey="promedio" fill="#2a5c9a" radius={[6,6,0,0]}/>
           </BarChart>
         </ResponsiveContainer>
       </div>

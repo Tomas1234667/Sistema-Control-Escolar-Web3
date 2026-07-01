@@ -47,32 +47,32 @@ function descargarBoletaPDF(alumno, db) {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#2d2d2d;background:#fff;padding:32px;font-size:13px}
-  .header{display:flex;align-items:center;gap:20px;border-bottom:3px solid #4a6fa5;padding-bottom:16px;margin-bottom:20px}
-  .escudo{width:64px;height:64px;background:#4a6fa5;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;flex-shrink:0}
-  .escuela-info h1{font-size:18px;font-weight:800;color:#4a6fa5}
-  .escuela-info p{font-size:12px;color:#5a5a5a}
-  h2{font-size:15px;font-weight:700;color:#4a6fa5;margin:18px 0 8px;border-left:4px solid #4a6fa5;padding-left:8px}
+  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#1f2733;background:#fff;padding:32px;font-size:13px}
+  .header{display:flex;align-items:center;gap:20px;border-bottom:3px solid #2a5c9a;padding-bottom:16px;margin-bottom:20px}
+  .escudo{width:64px;height:64px;background:#2a5c9a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;flex-shrink:0}
+  .escuela-info h1{font-size:18px;font-weight:800;color:#2a5c9a}
+  .escuela-info p{font-size:12px;color:#4c5866}
+  h2{font-size:15px;font-weight:700;color:#2a5c9a;margin:18px 0 8px;border-left:4px solid #2a5c9a;padding-left:8px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
-  .field{padding:6px 10px;background:#f5f0e8;border-radius:6px}
-  .field label{font-size:10px;font-weight:700;color:#5a5a5a;text-transform:uppercase;letter-spacing:.5px}
+  .field{padding:6px 10px;background:#eef1f5;border-radius:6px}
+  .field label{font-size:10px;font-weight:700;color:#4c5866;text-transform:uppercase;letter-spacing:.5px}
   .field span{display:block;font-weight:600;font-size:13px;margin-top:2px}
   table{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:12px}
-  th{background:#2c3a4a;color:#e8edf2;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.3px}
+  th{background:#16233a;color:#e8edf2;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.3px}
   th:not(:first-child){text-align:center}
-  td{padding:7px 10px;border-bottom:1px solid #e0dbd0}
-  tr:nth-child(even) td{background:#faf8f4}
+  td{padding:7px 10px;border-bottom:1px solid #dde2e9}
+  tr:nth-child(even) td{background:#f6f8fa}
   .resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
-  .res-card{padding:12px;border-radius:8px;text-align:center;background:#f5f0e8;border:1px solid #d8d2c6}
+  .res-card{padding:12px;border-radius:8px;text-align:center;background:#eef1f5;border:1px solid #dde2e9}
   .res-card .val{font-size:24px;font-weight:800}
-  .res-card .lbl{font-size:11px;color:#5a5a5a;margin-top:2px}
+  .res-card .lbl{font-size:11px;color:#4c5866;margin-top:2px}
   .firma{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px}
-  .firma-box{text-align:center;border-top:1px solid #2d2d2d;padding-top:8px;font-size:11px;color:#5a5a5a}
-  .footer{margin-top:24px;text-align:center;font-size:11px;color:#8a8a8a;border-top:1px solid #d8d2c6;padding-top:10px}
+  .firma-box{text-align:center;border-top:1px solid #1f2733;padding-top:8px;font-size:11px;color:#4c5866}
+  .footer{margin-top:24px;text-align:center;font-size:11px;color:#838d99;border-top:1px solid #dde2e9;padding-top:10px}
   .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
-  .b-green{background:#d6eed9;color:#2d6a3a}
-  .b-yellow{background:#f5edcc;color:#7a5a10}
-  .b-red{background:#f5dede;color:#7a2a2a}
+  .b-green{background:#e2f1e7;color:#1f6b40}
+  .b-yellow{background:#fdf1da;color:#8a5a06}
+  .b-red{background:#fbe8e8;color:#a3261e}
   @media print{body{padding:16px}button{display:none}}
 </style>
 </head>
